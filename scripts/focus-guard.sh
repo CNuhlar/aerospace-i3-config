@@ -27,6 +27,15 @@ cur=$("$AERO" list-workspaces --focused 2>/dev/null) || exit 0
 [ -n "$cur" ] || exit 0
 exp=$(cat "$STATE/expected" 2>/dev/null || true)
 
+# Track how many windows exist, so a jump caused by a window CLOSING can be told
+# apart from one caused by an app being activated. Closing the last window of an
+# app on this workspace hands focus to that app's window elsewhere, which looks
+# identical to an activation - and answering it with a new window means the app
+# springs back to life every time you close it.
+count=$("$AERO" list-windows --all --count 2>/dev/null || echo 0)
+prev_count=$(cat "$STATE/count" 2>/dev/null || echo "$count")
+printf '%s' "$count" > "$STATE/count"
+
 # No expectation yet, a deliberate move still in flight ('*'), or we are exactly
 # where we asked to be: nothing to do, just remember where we are.
 if [ -z "$exp" ] || [ "$exp" = '*' ] || [ "$exp" = "$cur" ]; then
@@ -49,6 +58,21 @@ before=$("$AERO" list-windows --all --format '%{window-id}' 2>/dev/null | sort -
 # Back home first, before anything slow.
 printf '%s' "$exp" > "$STATE/expected"
 "$AERO" workspace "$exp" 2>/dev/null
+
+# A window disappeared: this was a close, not an activation. Going back is all
+# that is wanted - opening a window here would resurrect what was just closed.
+if [ "$count" -lt "$prev_count" ]; then
+  exit 0
+fi
+
+# The app already has a window where we are. Focus that instead of making yet
+# another one; the point is not to be dragged away, not to pile up windows.
+here=$("$AERO" list-windows --workspace "$exp" --format '%{window-id} %{app-name}' 2>/dev/null \
+       | awk -v a="$app" '$0 ~ a {print $1; exit}')
+if [ -n "$here" ]; then
+  "$AERO" focus --window-id "$here" 2>/dev/null
+  exit 0
+fi
 
 # Ask the app for a new window through its own File menu. Targets the process
 # directly, so it works while the app sits in the background.

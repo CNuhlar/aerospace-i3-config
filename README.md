@@ -110,6 +110,11 @@ open -a Safari        t+0ms
 
 **The new window is requested through the app's own File menu**, not with `cmd+N`. By the time the guard asks, you are already back home and the app is no longer frontmost — a keystroke would land in whatever window is now in front. Clicking `File > New Window` in the Accessibility API targets that process directly and works while it sits in the background. The guard scans the File menu (also Shell, for terminals) for an item whose name contains both "New" and "Window", which covers "New Window", "New Finder Window" and "New Window with Current Profile" alike.
 
+It also knows when *not* to act:
+
+- **Closing a window never reopens it.** Closing the last window an app has on this workspace hands focus to that app's window somewhere else, which looks exactly like an activation from the outside. Answering that with a new window means the app springs back every time you close it. The guard compares the total window count against the previous focus change: if it went down, this was a close, so it only takes you back and stops there.
+- **An app that already has a window here just gets focused.** No second, third, fourth window piling up each time you activate it — the goal is not being dragged away, not manufacturing windows.
+
 Things worth knowing before you keep this:
 
 - **Apps with no such menu item fall back to being summoned.** If no new window appears within ~1.2s, the guard moves the app's existing window to your workspace instead, so you are never stranded — but you get the old window, not a fresh one.
