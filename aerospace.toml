@@ -48,11 +48,10 @@ outer.right      = 8
 #   create window with default profile -> opens a window with no session in it
 # What works: clicking Shell > "New Window with Current Profile".
 alt-enter = '''exec-and-forget osascript -e 'tell application "iTerm" to activate' -e 'tell application "System Events" to tell process "iTerm2" to click menu item "New Window with Current Profile" of menu 1 of menu bar item "Shell" of menu bar 1' '''
-# Spotlight in place of i3's dmenu (simulates cmd+space).
-# The 'delay' matters: if alt is still held when cmd+space is sent, macOS reads
-# it as cmd+alt+space, which is "Spotlight window" and opens a Finder search.
-# The delay waits for alt to be released.
-alt-d     = '''exec-and-forget osascript -e 'delay 0.3' -e 'tell application "System Events" to key code 49 using {command down}' '''
+# Spotlight in place of i3's dmenu. The script also tells focus-guard.sh that a
+# launch is in flight, so launching an app you already have open gives you a new
+# window instead of raising the old one. See scripts/launcher.sh.
+alt-d     = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/launcher.sh"'
 
 # --- window ---
 alt-shift-q = 'close'

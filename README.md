@@ -33,7 +33,7 @@ Then grant AeroSpace **Accessibility** permission (System Settings → Privacy &
 | Key | Action |
 |---|---|
 | `mod+enter` | new terminal window |
-| `mod+d` | Spotlight (i3's dmenu slot) |
+| `mod+d` | Spotlight (i3's dmenu slot) — always gives a new window |
 | `mod+shift+q` | close window |
 | `mod+f` | fullscreen — or leave macOS' own fullscreen, see below |
 | `mod+shift+space` | toggle floating |
@@ -109,6 +109,12 @@ open -a Safari        t+0ms
 ```
 
 **The new window is requested through the app's own File menu**, not with `cmd+N`. By the time the guard asks, you are already back home and the app is no longer frontmost — a keystroke would land in whatever window is now in front. Clicking `File > New Window` in the Accessibility API targets that process directly and works while it sits in the background. The guard scans the File menu (also Shell, for terminals) for an item whose name contains both "New" and "Window", which covers "New Window", "New Finder Window" and "New Window with Current Profile" alike.
+
+### Launching an app you already have open gives a new window
+
+Spotlight raises an app's existing window rather than making a new one, which is the opposite of what a launcher key should do in a tiling setup: `mod+d`, "safari", enter, and you wanted a second window, not the one you were already looking at.
+
+`mod+d` therefore goes through `scripts/launcher.sh`, which records the frontmost app and the window count before opening Spotlight. When focus then lands on a *different* app without the window count going up, the guard knows a launch just happened and asks that app for a new window. The note expires after 10 seconds, so dismissing Spotlight with escape and clicking around later does not trigger anything.
 
 It also knows when *not* to act:
 
