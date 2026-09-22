@@ -6,6 +6,10 @@ This is **not a fork** — it is a drop-in `~/.aerospace.toml`. Install AeroSpac
 
 `mod` is **alt** (i3's Mod1). `cmd` is deliberately left untouched so macOS shortcuts (`cmd+w`, `cmd+f`, `cmd+s`, `cmd+tab`, copy/paste) keep working — see [Why not cmd?](#why-not-cmd).
 
+![Three terminals tiled on macOS: one full-height column on the left, the right column split vertically](docs/screenshot.png)
+
+*Three windows on workspace 5: one split horizontally, then the right side split vertically. The workspace indicator sits in the menu bar.*
+
 ## Install
 
 ```sh
@@ -124,6 +128,10 @@ The binding simulates `cmd+space`. But if `alt` is still physically held when th
 ### Workspace indicator in the menu bar
 
 No extra tool needed. AeroSpace ships one: its menu bar icon → **Experimental UI Settings → i3 style ordered** shows non-empty workspaces in ascending order with the active one highlighted, which is the i3bar behaviour most people want.
+
+![Menu bar indicator showing workspaces 1, 3 and 5, with 5 highlighted](docs/menubar.png)
+
+Workspaces 2 and 4 are empty here, so they are not drawn at all — exactly like i3bar.
 
 Worth knowing: `i3 style grouped` pulls the active workspace to the front behind a separator, `i3 style ordered` keeps strict numeric order. This setting is **not** part of the config file — it lives in AeroSpace's own preferences, so it has to be set again on each machine.
 
