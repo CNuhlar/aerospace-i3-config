@@ -2,6 +2,7 @@
 # Switch workspace / monitor and record the move as intentional, so that
 # focus-guard.sh can tell a deliberate switch from an app-activation jump.
 set -u
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
 AERO=$(command -v aerospace || echo /opt/homebrew/bin/aerospace)
 STATE="$HOME/.cache/aerospace-i3"

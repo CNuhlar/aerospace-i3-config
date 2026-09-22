@@ -1,14 +1,21 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Stop app activation from yanking you to another workspace.
 #
 # AeroSpace follows an app when you activate it: if Safari's only window lives
-# on workspace 3 and you activate Safari from workspace 1, you are moved to
-# workspace 3. This script keeps you where you are and gives the app a new
-# window on the current workspace instead.
+# on workspace 3 and you activate Safari from workspace 2, you are moved to
+# workspace 3. This script puts you straight back and gives the app a new
+# window where you already were.
+#
+# Order matters. Going back is the FIRST thing it does, so the detour is a
+# flicker rather than a visible trip to another workspace. Only then does it
+# ask the app for a new window, which is why it clicks the app's own
+# File > New Window menu item instead of sending cmd+N: by that point the app
+# is no longer frontmost and a keystroke would land in the wrong window.
 #
 # Wired up as on-focus-changed in aerospace.toml. Disable at any time with:
 #   touch ~/.cache/aerospace-i3/disabled
 set -u
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 AERO=$(command -v aerospace || echo /opt/homebrew/bin/aerospace)
 STATE="$HOME/.cache/aerospace-i3"
@@ -29,35 +36,61 @@ fi
 
 # --- we were moved to another workspace without asking ---
 
-# One instance at a time; the work below triggers focus changes of its own.
-lock="$STATE/lock.d"
-if [ -d "$lock" ]; then
-  # drop a stale lock from a crashed run
-  find "$STATE" -maxdepth 1 -name lock.d -type d -mmin +1 -exec rmdir {} \; 2>/dev/null
-fi
-mkdir "$lock" 2>/dev/null || exit 0
-trap 'rmdir "$lock" 2>/dev/null' EXIT
+# One instance at a time; everything below causes focus changes of its own.
+[ -d "$STATE/lock.d" ] && find "$STATE" -maxdepth 1 -name lock.d -type d -mmin +1 -exec rmdir {} \; 2>/dev/null
+mkdir "$STATE/lock.d" 2>/dev/null || exit 0
+trap 'rmdir "$STATE/lock.d" 2>/dev/null' EXIT
 
-wid=$("$AERO" list-windows --focused --format '%{window-id}' 2>/dev/null | head -1)
-[ -n "$wid" ] || exit 0
-
+# Who dragged us here, and what did the window list look like before we acted?
+read -r wid app <<<"$("$AERO" list-windows --focused --format '%{window-id} %{app-name}' 2>/dev/null | head -1)"
+[ -n "${wid:-}" ] || exit 0
 before=$("$AERO" list-windows --all --format '%{window-id}' 2>/dev/null | sort -n)
 
-# The app we were dragged to is frontmost right now, so cmd+N reaches it.
-osascript -e 'tell application "System Events" to keystroke "n" using command down' 2>/dev/null
-sleep 0.8
+# Back home first, before anything slow.
+printf '%s' "$exp" > "$STATE/expected"
+"$AERO" workspace "$exp" 2>/dev/null
 
-after=$("$AERO" list-windows --all --format '%{window-id}' 2>/dev/null | sort -n)
-new=$(comm -13 <(printf '%s\n' "$before") <(printf '%s\n' "$after") | head -1)
+# Ask the app for a new window through its own File menu. Targets the process
+# directly, so it works while the app sits in the background.
+osascript - "$app" <<'OSA' >/dev/null 2>&1
+on run argv
+  set procName to item 1 of argv
+  tell application "System Events" to tell process procName
+    repeat with mb in {"File", "Shell", "Dosya"}
+      try
+        set fm to menu 1 of menu bar item mb of menu bar 1
+        repeat with mi in menu items of fm
+          set n to name of mi as text
+          if n contains "New" and n contains "Window" then
+            click mi
+            return "ok"
+          end if
+        end repeat
+      end try
+    end repeat
+  end tell
+  return "none"
+end run
+OSA
+
+# Wait briefly for a window to show up.
+new=""
+for _ in 1 2 3 4 5 6; do
+  sleep 0.2
+  new=$("$AERO" list-windows --all --format '%{window-id}' 2>/dev/null | sort -n \
+        | comm -13 <(printf '%s\n' "$before") - | head -1)
+  [ -n "$new" ] && break
+done
 
 if [ -n "$new" ]; then
-  # Got a new window: bring that one back with us.
-  "$AERO" move-node-to-workspace --window-id "$new" "$exp" 2>/dev/null
+  # New windows land on the focused workspace, which is already home. Move it
+  # only if the app placed it somewhere else.
+  where=$("$AERO" list-windows --all --format '%{window-id} %{workspace}' 2>/dev/null | awk -v w="$new" '$1==w{print $2}')
+  [ -n "$where" ] && [ "$where" != "$exp" ] && "$AERO" move-node-to-workspace --window-id "$new" "$exp" 2>/dev/null
 else
-  # App has no cmd+N (or it did something else). Fall back to summoning the
-  # existing window instead of leaving the user stranded.
+  # No File > New Window (or the app ignored it). Summon the existing window
+  # rather than leaving the app unreachable from here.
   "$AERO" move-node-to-workspace --window-id "$wid" "$exp" 2>/dev/null
 fi
 
 printf '%s' "$exp" > "$STATE/expected"
-"$AERO" workspace "$exp" 2>/dev/null

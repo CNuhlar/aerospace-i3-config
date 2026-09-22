@@ -96,11 +96,23 @@ alt-f = '''exec-and-forget /bin/bash -lc 'aerospace macos-native-fullscreen off 
 
 By default, activating an app follows its window: if Safari's only window is on workspace 3 and you hit Spotlight from workspace 1, AeroSpace moves you to workspace 3. `scripts/focus-guard.sh`, wired up as `on-focus-changed`, keeps you put and gives the app a **new window on the workspace you are on**.
 
-How it knows the difference between your own workspace switch and an app jump: every binding that changes workspaces goes through `scripts/ws-goto.sh`, which records the intended workspace before switching. When focus lands somewhere that was not asked for, the guard sends `cmd+N` to the app that pulled you away, moves the resulting window back to where you were, and returns you there.
+How it knows the difference between your own workspace switch and an app jump: every binding that changes workspaces goes through `scripts/ws-goto.sh`, which records the intended workspace *before* switching. When focus lands somewhere that was not asked for, the guard takes over.
+
+Two details make it feel instant rather than like a round trip:
+
+**Going back happens first.** AeroSpace has already moved you by the time any callback runs, so the detour cannot be prevented — only made short. The guard switches back before it does anything else, and asks for the new window afterwards. Measured on the jump it was written for: 75 ms on the wrong workspace, a flicker rather than a visible trip.
+
+```
+open -a Safari        t+0ms
+  -> workspace 3      t+47ms    (AeroSpace follows the app)
+  -> workspace 2      t+122ms   (guard puts you back)
+```
+
+**The new window is requested through the app's own File menu**, not with `cmd+N`. By the time the guard asks, you are already back home and the app is no longer frontmost — a keystroke would land in whatever window is now in front. Clicking `File > New Window` in the Accessibility API targets that process directly and works while it sits in the background. The guard scans the File menu (also Shell, for terminals) for an item whose name contains both "New" and "Window", which covers "New Window", "New Finder Window" and "New Window with Current Profile" alike.
 
 Things worth knowing before you keep this:
 
-- **It leans on `cmd+N`.** That is "new window" in most apps, but not all — in some it is "new note" or "new tab". If no new window appears within 0.8s the guard falls back to summoning the app's existing window to your workspace, so you are never stranded, but the result is not always a fresh window.
+- **Apps with no such menu item fall back to being summoned.** If no new window appears within ~1.2s, the guard moves the app's existing window to your workspace instead, so you are never stranded — but you get the old window, not a fresh one.
 - **`cmd+tab` behaves differently.** Switching to an app that lives on another workspace now gives you a new window here rather than taking you there.
 - **Switch workspaces via the bindings, not the CLI.** Running `aerospace workspace 3` by hand looks exactly like an app jump to the guard, and it will pull you back. Use `~/.config/aerospace-i3/ws-goto.sh 3` instead.
 - **Turn it off any time** with `touch ~/.cache/aerospace-i3/disabled` — no config edit, no reload.
