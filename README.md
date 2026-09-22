@@ -97,7 +97,7 @@ For iTerm2, two obvious approaches fail:
 
 | Approach | Result |
 |---|---|
-| `open -na iTerm` | iTerm refuses a second instance — no window at all |
+| `open -na iTerm` | no window at all — but a second iTerm **process** is left running |
 | `create window with default profile` | window opens with **no session in it** |
 
 What works is clicking the menu item:
@@ -108,6 +108,14 @@ osascript -e 'tell application "iTerm" to activate' \
 ```
 
 Using a different terminal? Ghostty, Alacritty and kitty all open a real window with plain `open -na <App>`, so you can replace that binding with a one-liner.
+
+The `open -na` failure is worse than it looks. `-n` asks for a **new instance**: iTerm shows no window but the process stays alive, so every keypress leaves another iTerm behind, each one an extra icon's worth of running app. They also break AppleScript targeting — `tell application "iTerm" to count windows` starts answering from a windowless instance and returns `0`. If you ran such a binding for a while, clean them up by killing every `iTerm2` process that owns no windows:
+
+```sh
+# which pid owns which window
+aerospace list-windows --all --format '%{window-id} %{app-pid} %{app-name}'
+# kill the iTerm2 pids that appear in no row
+```
 
 ### `mod+d` opened a Finder search window
 
