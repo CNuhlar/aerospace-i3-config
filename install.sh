@@ -14,6 +14,14 @@ fi
 ln -sfn "$repo/aerospace.toml" "$target"
 echo "Linked $target -> $repo/aerospace.toml"
 
+# The config calls these by a fixed path so it stays machine-independent.
+scripts_dir="$HOME/.config/aerospace-i3"
+mkdir -p "$scripts_dir"
+for f in "$repo"/scripts/*.sh; do
+  ln -sfn "$f" "$scripts_dir/$(basename "$f")"
+done
+echo "Linked scripts into $scripts_dir"
+
 if command -v aerospace >/dev/null 2>&1; then
   aerospace reload-config && echo "Config reloaded."
 else

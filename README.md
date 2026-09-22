@@ -35,7 +35,7 @@ Then grant AeroSpace **Accessibility** permission (System Settings → Privacy &
 | `mod+enter` | new terminal window |
 | `mod+d` | Spotlight (i3's dmenu slot) |
 | `mod+shift+q` | close window |
-| `mod+f` | fullscreen |
+| `mod+f` | fullscreen — or leave macOS' own fullscreen, see below |
 | `mod+shift+space` | toggle floating |
 
 ### Focus and movement
@@ -79,6 +79,31 @@ i3's default finger layout — `j k l ;` rather than `h j k l`, because `h` is t
 In resize mode: `j` / `k` / `l` / `;` and arrows resize, `shift` + those resize in smaller steps, `b` balances sizes, `enter` or `esc` returns to normal mode.
 
 Horizontal resize is intentionally inverted relative to i3's default (`j`/← grows, `;`/→ shrinks). Flip the signs in `[mode.resize.binding]` if you prefer i3's direction. Note that either way it can feel backwards: `resize width` grows the **focused window**, not "push the divider this way", so the divider moves in opposite directions depending on which side of the split you are on. AeroSpace has no directional divider command.
+
+## Two behaviours beyond plain i3
+
+### `mod+f` also escapes macOS' native fullscreen
+
+A window put into macOS' own fullscreen with the green button is off in its own Space where AeroSpace cannot tile it, and AeroSpace's `fullscreen` toggle does not bring it back. `mod+f` handles both cases:
+
+```toml
+alt-f = '''exec-and-forget /bin/bash -lc 'aerospace macos-native-fullscreen off --fail-if-noop || aerospace fullscreen' '''
+```
+
+`--fail-if-noop` is what makes it work: it exits non-zero when there was nothing to turn off, so the `||` falls through to the normal toggle. In native fullscreen, `mod+f` drops you back into the tiling layout and stops there.
+
+### Activating an app no longer drags you to another workspace
+
+By default, activating an app follows its window: if Safari's only window is on workspace 3 and you hit Spotlight from workspace 1, AeroSpace moves you to workspace 3. `scripts/focus-guard.sh`, wired up as `on-focus-changed`, keeps you put and gives the app a **new window on the workspace you are on**.
+
+How it knows the difference between your own workspace switch and an app jump: every binding that changes workspaces goes through `scripts/ws-goto.sh`, which records the intended workspace before switching. When focus lands somewhere that was not asked for, the guard sends `cmd+N` to the app that pulled you away, moves the resulting window back to where you were, and returns you there.
+
+Things worth knowing before you keep this:
+
+- **It leans on `cmd+N`.** That is "new window" in most apps, but not all — in some it is "new note" or "new tab". If no new window appears within 0.8s the guard falls back to summoning the app's existing window to your workspace, so you are never stranded, but the result is not always a fresh window.
+- **`cmd+tab` behaves differently.** Switching to an app that lives on another workspace now gives you a new window here rather than taking you there.
+- **Switch workspaces via the bindings, not the CLI.** Running `aerospace workspace 3` by hand looks exactly like an app jump to the guard, and it will pull you back. Use `~/.config/aerospace-i3/ws-goto.sh 3` instead.
+- **Turn it off any time** with `touch ~/.cache/aerospace-i3/disabled` — no config edit, no reload.
 
 ## macOS gotchas this config works around
 

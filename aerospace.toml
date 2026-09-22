@@ -20,6 +20,10 @@ default-root-container-orientation = 'auto'
 
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 
+# Keep app activation from dragging you to another workspace.
+# See scripts/focus-guard.sh. Disable with: touch ~/.cache/aerospace-i3/disabled
+on-focus-changed = ['exec-and-forget /bin/bash -lc "$HOME/.config/aerospace-i3/focus-guard.sh"']
+
 automatically-unhide-macos-hidden-apps = false
 
 key-mapping.preset = 'qwerty'
@@ -52,7 +56,10 @@ alt-d     = '''exec-and-forget osascript -e 'delay 0.3' -e 'tell application "Sy
 
 # --- window ---
 alt-shift-q = 'close'
-alt-f       = 'fullscreen'
+# If the window is in macOS' own fullscreen (green button), leave it and go back
+# to tiling. Otherwise toggle AeroSpace's fullscreen. '--fail-if-noop' is what
+# makes the fallback work: it exits non-zero when there was nothing to turn off.
+alt-f       = '''exec-and-forget /bin/bash -lc 'aerospace macos-native-fullscreen off --fail-if-noop || aerospace fullscreen' '''
 alt-shift-space = 'layout floating tiling'   # i3: floating toggle
 
 # --- split (i3: where the next window opens) ---
@@ -84,16 +91,16 @@ alt-shift-up    = 'move up'
 alt-shift-right = 'move right'
 
 # --- switch workspace ---
-alt-1 = 'workspace 1'
-alt-2 = 'workspace 2'
-alt-3 = 'workspace 3'
-alt-4 = 'workspace 4'
-alt-5 = 'workspace 5'
-alt-6 = 'workspace 6'
-alt-7 = 'workspace 7'
-alt-8 = 'workspace 8'
-alt-9 = 'workspace 9'
-alt-0 = 'workspace 10'
+alt-1 = 'exec-and-forget /bin/bash -lc "$HOME/.config/aerospace-i3/ws-goto.sh 1"'
+alt-2 = 'exec-and-forget /bin/bash -lc "$HOME/.config/aerospace-i3/ws-goto.sh 2"'
+alt-3 = 'exec-and-forget /bin/bash -lc "$HOME/.config/aerospace-i3/ws-goto.sh 3"'
+alt-4 = 'exec-and-forget /bin/bash -lc "$HOME/.config/aerospace-i3/ws-goto.sh 4"'
+alt-5 = 'exec-and-forget /bin/bash -lc "$HOME/.config/aerospace-i3/ws-goto.sh 5"'
+alt-6 = 'exec-and-forget /bin/bash -lc "$HOME/.config/aerospace-i3/ws-goto.sh 6"'
+alt-7 = 'exec-and-forget /bin/bash -lc "$HOME/.config/aerospace-i3/ws-goto.sh 7"'
+alt-8 = 'exec-and-forget /bin/bash -lc "$HOME/.config/aerospace-i3/ws-goto.sh 8"'
+alt-9 = 'exec-and-forget /bin/bash -lc "$HOME/.config/aerospace-i3/ws-goto.sh 9"'
+alt-0 = 'exec-and-forget /bin/bash -lc "$HOME/.config/aerospace-i3/ws-goto.sh 10"'
 
 # --- move window to workspace ---
 alt-shift-1 = 'move-node-to-workspace 1'
@@ -108,14 +115,14 @@ alt-shift-9 = 'move-node-to-workspace 9'
 alt-shift-0 = 'move-node-to-workspace 10'
 
 # i3: mod+tab / workspace back_and_forth
-alt-tab = 'workspace-back-and-forth'
+alt-tab = 'exec-and-forget /bin/bash -lc "$HOME/.config/aerospace-i3/ws-goto.sh --back-and-forth"'
 alt-shift-tab = 'move-workspace-to-monitor --wrap-around next'
 
 # --- monitors (i3: outputs) ---
-alt-ctrl-j         = 'focus-monitor left'
-alt-ctrl-semicolon = 'focus-monitor right'
-alt-ctrl-shift-j         = 'move-node-to-monitor left'
-alt-ctrl-shift-semicolon = 'move-node-to-monitor right'
+alt-ctrl-j         = 'exec-and-forget /bin/bash -lc "$HOME/.config/aerospace-i3/ws-goto.sh --monitor left"'
+alt-ctrl-semicolon = 'exec-and-forget /bin/bash -lc "$HOME/.config/aerospace-i3/ws-goto.sh --monitor right"'
+alt-ctrl-shift-j         = 'exec-and-forget /bin/bash -lc "$HOME/.config/aerospace-i3/ws-goto.sh --move-to-monitor left"'
+alt-ctrl-shift-semicolon = 'exec-and-forget /bin/bash -lc "$HOME/.config/aerospace-i3/ws-goto.sh --move-to-monitor right"'
 
 # --- reload config (i3: mod+shift+c) ---
 alt-shift-c = 'reload-config'
