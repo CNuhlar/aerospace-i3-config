@@ -1,0 +1,161 @@
+# AeroSpace config with i3 keybindings
+# mod = alt (i3's Mod1). cmd is left alone so macOS shortcuts keep working.
+# Lives in this repo; ~/.aerospace.toml is a symlink to it.
+
+config-version = 2
+auto-reload-config = true
+start-at-login = true
+
+after-login-command = []
+after-startup-command = []
+
+# Required for i3-like behaviour: the 'split' command is a no-op while
+# normalization is on. With it off, the container tree stays where you put it.
+enable-normalization-flatten-containers = false
+enable-normalization-opposite-orientation-for-nested-containers = false
+
+accordion-padding = 30
+default-root-container-layout = 'tiles'
+default-root-container-orientation = 'auto'
+
+on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
+
+automatically-unhide-macos-hidden-apps = false
+
+key-mapping.preset = 'qwerty'
+
+# Keep workspaces 1-10 alive even when empty (i3-like)
+persistent-workspaces = ["1","2","3","4","5","6","7","8","9","10"]
+
+
+[gaps]
+inner.horizontal = 8
+inner.vertical   = 8
+outer.left       = 8
+outer.bottom     = 8
+outer.top        = 8
+outer.right      = 8
+
+[mode.main.binding]
+
+# --- terminal / launcher ---
+# New iTerm window. Two obvious approaches are broken:
+#   open -na iTerm                     -> iTerm refuses a second instance, no window
+#   create window with default profile -> opens a window with no session in it
+# What works: clicking Shell > "New Window with Current Profile".
+alt-enter = '''exec-and-forget osascript -e 'tell application "iTerm" to activate' -e 'tell application "System Events" to tell process "iTerm2" to click menu item "New Window with Current Profile" of menu 1 of menu bar item "Shell" of menu bar 1' '''
+# Spotlight in place of i3's dmenu (simulates cmd+space).
+# The 'delay' matters: if alt is still held when cmd+space is sent, macOS reads
+# it as cmd+alt+space, which is "Spotlight window" and opens a Finder search.
+# The delay waits for alt to be released.
+alt-d     = '''exec-and-forget osascript -e 'delay 0.3' -e 'tell application "System Events" to key code 49 using {command down}' '''
+
+# --- window ---
+alt-shift-q = 'close'
+alt-f       = 'fullscreen'
+alt-shift-space = 'layout floating tiling'   # i3: floating toggle
+
+# --- split (i3: where the next window opens) ---
+alt-h         = 'split horizontal'
+alt-v         = 'split vertical'
+alt-backslash = 'split horizontal'
+alt-e = 'layout tiles horizontal vertical'
+alt-w = 'layout accordion horizontal vertical'
+alt-s = 'layout accordion vertical horizontal'
+
+# --- focus (i3 default layout: j/k/l/; plus arrows) ---
+alt-j         = 'focus left'
+alt-k         = 'focus down'
+alt-l         = 'focus up'
+alt-semicolon = 'focus right'
+alt-left  = 'focus left'
+alt-down  = 'focus down'
+alt-up    = 'focus up'
+alt-right = 'focus right'
+
+# --- move window ---
+alt-shift-j         = 'move left'
+alt-shift-k         = 'move down'
+alt-shift-l         = 'move up'
+alt-shift-semicolon = 'move right'
+alt-shift-left  = 'move left'
+alt-shift-down  = 'move down'
+alt-shift-up    = 'move up'
+alt-shift-right = 'move right'
+
+# --- switch workspace ---
+alt-1 = 'workspace 1'
+alt-2 = 'workspace 2'
+alt-3 = 'workspace 3'
+alt-4 = 'workspace 4'
+alt-5 = 'workspace 5'
+alt-6 = 'workspace 6'
+alt-7 = 'workspace 7'
+alt-8 = 'workspace 8'
+alt-9 = 'workspace 9'
+alt-0 = 'workspace 10'
+
+# --- move window to workspace ---
+alt-shift-1 = 'move-node-to-workspace 1'
+alt-shift-2 = 'move-node-to-workspace 2'
+alt-shift-3 = 'move-node-to-workspace 3'
+alt-shift-4 = 'move-node-to-workspace 4'
+alt-shift-5 = 'move-node-to-workspace 5'
+alt-shift-6 = 'move-node-to-workspace 6'
+alt-shift-7 = 'move-node-to-workspace 7'
+alt-shift-8 = 'move-node-to-workspace 8'
+alt-shift-9 = 'move-node-to-workspace 9'
+alt-shift-0 = 'move-node-to-workspace 10'
+
+# i3: mod+tab / workspace back_and_forth
+alt-tab = 'workspace-back-and-forth'
+alt-shift-tab = 'move-workspace-to-monitor --wrap-around next'
+
+# --- monitors (i3: outputs) ---
+alt-ctrl-j         = 'focus-monitor left'
+alt-ctrl-semicolon = 'focus-monitor right'
+alt-ctrl-shift-j         = 'move-node-to-monitor left'
+alt-ctrl-shift-semicolon = 'move-node-to-monitor right'
+
+# --- reload config (i3: mod+shift+c) ---
+alt-shift-c = 'reload-config'
+
+# --- modes ---
+alt-r = 'mode resize'
+alt-shift-e = 'mode exit'
+
+[mode.resize.binding]
+# same finger layout as focus: j=left, k=down, l=up, ;=right
+# horizontal is intentionally inverted: j/left grows, ;/right shrinks
+j         = 'resize width +50'
+k         = 'resize height +50'
+l         = 'resize height -50'
+semicolon = 'resize width -50'
+left  = 'resize width +50'
+down  = 'resize height +50'
+up    = 'resize height -50'
+right = 'resize width -50'
+shift-j         = 'resize width +10'
+shift-k         = 'resize height +10'
+shift-l         = 'resize height -10'
+shift-semicolon = 'resize width -10'
+b = 'balance-sizes'
+enter = 'mode main'
+esc   = 'mode main'
+
+[mode.exit.binding]
+# i3's "exit i3?" confirmation
+y = ['exec-and-forget osascript -e "tell application \"AeroSpace\" to quit"', 'mode main']
+n = 'mode main'
+enter = 'mode main'
+esc   = 'mode main'
+
+# --- app rules ---
+[[on-window-detected]]
+if.app-id = 'com.apple.systempreferences'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.finder'
+if.window-title-regex-substring = 'Copy'
+run = 'layout floating'
