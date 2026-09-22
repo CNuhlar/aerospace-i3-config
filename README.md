@@ -108,13 +108,21 @@ open -a Safari        t+0ms
   -> workspace 2      t+122ms   (guard puts you back)
 ```
 
-**The new window is requested through the app's own File menu**, not with `cmd+N`. By the time the guard asks, you are already back home and the app is no longer frontmost — a keystroke would land in whatever window is now in front. Clicking `File > New Window` in the Accessibility API targets that process directly and works while it sits in the background. The guard scans the File menu (also Shell, for terminals) for an item whose name contains both "New" and "Window", which covers "New Window", "New Finder Window" and "New Window with Current Profile" alike.
+**The new window is requested through the app's own File menu**, not with `cmd+N`. By the time the guard asks, you are already back home and the app is no longer frontmost — a keystroke would land in whatever window is now in front. Clicking `File > New Window` in the Accessibility API targets that process directly and works while it sits in the background. The scan — shared by the guard and the launcher, in `scripts/lib.sh` — looks through the File menu (also Shell, for terminals) for an item whose name contains both "New" and "Window", which covers "New Window", "New Finder Window" and "New Window with Current Profile" alike.
 
 ### Launching an app you already have open gives a new window
 
 Spotlight raises an app's existing window rather than making a new one, which is the opposite of what a launcher key should do in a tiling setup: `mod+d`, "safari", enter, and you wanted a second window, not the one you were already looking at.
 
-`mod+d` therefore goes through `scripts/launcher.sh`, which records the frontmost app and the window count before opening Spotlight. When focus then lands on a *different* app without the window count going up, the guard knows a launch just happened and asks that app for a new window. The note expires after 10 seconds, so dismissing Spotlight with escape and clicking around later does not trigger anything.
+`mod+d` therefore goes through `scripts/launcher.sh`, which opens Spotlight and then watches it. Spotlight never reports what it did, so the script reads the panel directly: every 120 ms it takes the query text and the name of the **highlighted result** — the app Return would open. When the panel disappears it knows both what was asked for and what was in front beforehand, and decides within the next second:
+
+- window count went up → the app made its own window, nothing to do;
+- the highlighted app is now in front and the count did not move → Spotlight raised an existing window, so ask that app for a new one and focus it;
+- focus is somewhere else entirely → not our launch, leave it alone.
+
+Reading the highlight is what makes the last case safe. An earlier version left a note saying "a launch may be in flight" and let the focus guard claim the next app change within ten seconds — which meant that switching workspaces right after launching something opened a stray window of whatever you landed on, usually a terminal. Nothing is claimed now that was not aimed at.
+
+Dismissing the panel has to stay free, and that needs one more reading: Spotlight reopens holding your **last search, fully selected**. Left alone it stays selected; the first keystroke replaces it. So the probe also asks whether the selection still covers the whole field — if it does, nobody typed here and whatever is in the box is a leftover, not a request. Without that, pressing `mod+d` and changing your mind would open a window of whatever you searched for a minute ago.
 
 It also knows when *not* to act:
 
@@ -124,9 +132,11 @@ It also knows when *not* to act:
 Things worth knowing before you keep this:
 
 - **Apps with no such menu item fall back to being summoned.** If no new window appears within ~1.2s, the guard moves the app's existing window to your workspace instead, so you are never stranded — but you get the old window, not a fresh one.
+- **Accepting a remembered query without retyping it gets you a raise, not a new window.** `mod+d`, return, on the search Spotlight still had in the box reads as an untouched prompt. Type a character and it behaves normally; this is the price of dismissal being free, and dismissal is the far more common move.
 - **`cmd+tab` behaves differently.** Switching to an app that lives on another workspace now gives you a new window here rather than taking you there.
 - **Switch workspaces via the bindings, not the CLI.** Running `aerospace workspace 3` by hand looks exactly like an app jump to the guard, and it will pull you back. Use `~/.config/aerospace-i3/ws-goto.sh 3` instead.
 - **Turn it off any time** with `touch ~/.cache/aerospace-i3/disabled` — no config edit, no reload.
+- **Watch it think** with `touch ~/.cache/aerospace-i3/debug`, then `tail -f ~/.cache/aerospace-i3/log`. Every decision either script makes is one line. `rm` the flag to stop.
 
 ## macOS gotchas this config works around
 

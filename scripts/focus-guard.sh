@@ -1,19 +1,17 @@
 #!/bin/bash
-# Two jobs, both reacting to on-focus-changed:
+# Activating an app must not drag you to whatever workspace its window happens to
+# live on. Go back to where you were, and give the app a window here instead.
 #
-#  1. Activating an app must not drag you to whatever workspace its window
-#     happens to live on. Go back, and give the app a window where you are.
-#  2. Launching an app from the launcher (mod+d) when it is already open must
-#     give you a NEW window, not raise the existing one.
+# The mod+d "give me a new window" half lives in launcher.sh; all this script
+# takes from it is launch_pending, which says the jump about to happen was asked
+# for on purpose.
 #
-# Disable both at any time with:  touch ~/.cache/aerospace-i3/disabled
+# Disable at any time with:  touch ~/.cache/aerospace-i3/disabled
 set -u
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 AERO=$(command -v aerospace || echo /opt/homebrew/bin/aerospace)
-STATE="$HOME/.cache/aerospace-i3"
-mkdir -p "$STATE"
-LAUNCH_TTL=10   # seconds a mod+d launch stays "in flight"
+. "$(dirname "$0")/lib.sh"
 
 [ -e "$STATE/disabled" ] && exit 0
 
@@ -29,70 +27,16 @@ count=$("$AERO" list-windows --all --count 2>/dev/null || echo 0)
 prev_count=$(cat "$STATE/count" 2>/dev/null || echo "$count")
 printf '%s' "$count" > "$STATE/count"
 
-# Ask an app for a new window through its own File menu. Targets the process
-# directly, so it works while the app sits in the background - by the time this
-# runs the app is usually not frontmost any more and a cmd+N keystroke would
-# land in the wrong window.
-new_window() {
-  osascript - "$1" <<'OSA' >/dev/null 2>&1
-on run argv
-  set procName to item 1 of argv
-  tell application "System Events" to tell process procName
-    repeat with mb in {"File", "Shell", "Dosya"}
-      try
-        set fm to menu 1 of menu bar item mb of menu bar 1
-        repeat with mi in menu items of fm
-          set n to name of mi as text
-          if n contains "New" and n contains "Window" then
-            click mi
-            return "ok"
-          end if
-        end repeat
-      end try
-    end repeat
-  end tell
-  return "none"
-end run
-OSA
-}
-
-take_lock() {
-  [ -d "$STATE/lock.d" ] && find "$STATE" -maxdepth 1 -name lock.d -type d -mmin +1 -exec rmdir {} \; 2>/dev/null
-  mkdir "$STATE/lock.d" 2>/dev/null || return 1
-  trap 'rmdir "$STATE/lock.d" 2>/dev/null' EXIT
-  return 0
-}
-
-launch_pending() {
-  local at now
-  at=$(cat "$STATE/launch-at" 2>/dev/null || echo 0)
-  now=$(date +%s)
-  [ "$at" -gt 0 ] && [ $((now - at)) -le "$LAUNCH_TTL" ]
-}
-
-clear_launch() { rm -f "$STATE/launch-at" "$STATE/launch-app" "$STATE/launch-count"; }
+log "guard: focus change, cur=$cur exp=$exp count=$count prev=$prev_count focused=[$("$AERO" list-windows --focused --format '%{window-id} %{app-name}' 2>/dev/null | head -1)]"
 
 if [ -z "$exp" ] || [ "$exp" = '*' ] || [ "$exp" = "$cur" ]; then
-  # --- no workspace jump ---
   printf '%s' "$cur" > "$STATE/expected"
-
-  # Did mod+d just launch something that was already open? Spotlight raises the
-  # existing window rather than making one, so the window count does not move.
-  launch_pending || exit 0
-  read -r wid app <<<"$("$AERO" list-windows --focused --format '%{window-id} %{app-name}' 2>/dev/null | head -1)"
-  [ -n "${app:-}" ] || exit 0
-  was=$(cat "$STATE/launch-app" 2>/dev/null || true)
-  [ "$app" = "$was" ] && exit 0                      # same app as before: nothing was launched yet
-  launch_count=$(cat "$STATE/launch-count" 2>/dev/null || echo "$count")
-  clear_launch
-  [ "$count" -gt "$launch_count" ] && exit 0         # it opened its own window already
-  take_lock || exit 0
-  new_window "$app"
   exit 0
 fi
 
 # --- we were moved to another workspace without asking ---
-take_lock || exit 0
+log "guard: JUMP $exp -> $cur, count=$count prev=$prev_count"
+take_lock || { log "guard: lock busy"; exit 0; }
 
 read -r wid app <<<"$("$AERO" list-windows --focused --format '%{window-id} %{app-name}' 2>/dev/null | head -1)"
 [ -n "${wid:-}" ] || exit 0
@@ -103,22 +47,23 @@ printf '%s' "$exp" > "$STATE/expected"
 "$AERO" workspace "$exp" 2>/dev/null
 
 if [ "$count" -lt "$prev_count" ]; then
-  clear_launch
-  exit 0                                             # a close, not an activation
+  log "guard: count dropped, this was a close"
+  exit 0
 fi
 
 # Already have a window of this app here? Focus it instead of piling up more -
 # unless mod+d asked for a new one on purpose.
 if ! launch_pending; then
   here=$("$AERO" list-windows --workspace "$exp" --format '%{window-id} %{app-name}' 2>/dev/null \
-         | awk -v a="$app" '$0 ~ a {print $1; exit}')
+         | awk -v a="$app" '{id=$1; sub(/^[^ ]* /,""); if ($0 == a) {print id; exit}}')
   if [ -n "$here" ]; then
+    log "guard: $app already has window $here on $exp, focusing it"
     "$AERO" focus --window-id "$here" 2>/dev/null
     exit 0
   fi
 fi
-clear_launch
 
+log "guard: asking $app for a new window"
 new_window "$app"
 
 new=""
@@ -132,9 +77,12 @@ done
 if [ -n "$new" ]; then
   where=$("$AERO" list-windows --all --format '%{window-id} %{workspace}' 2>/dev/null | awk -v w="$new" '$1==w{print $2}')
   [ -n "$where" ] && [ "$where" != "$exp" ] && "$AERO" move-node-to-workspace --window-id "$new" "$exp" 2>/dev/null
+  "$AERO" focus --window-id "$new" 2>/dev/null
+  log "guard: new window $new is on $exp"
 else
   # No File > New Window, or the app ignored it: summon the existing window
   # rather than leaving the app unreachable from here.
+  log "guard: no new window appeared, dragging $wid over instead"
   "$AERO" move-node-to-workspace --window-id "$wid" "$exp" 2>/dev/null
 fi
 
