@@ -30,14 +30,15 @@ end run
 OSA
 }
 
-# One writer at a time: the guard fires on every focus change, and the launcher
-# runs alongside it.
+# One writer at a time: the guard fires on every focus change, the launcher runs
+# alongside it, and no-fullscreen.sh cuts in whenever a window goes fullscreen.
+# Callers release it themselves - the long-running one must not hold it for its
+# whole life, which an EXIT trap set in here would do.
 take_lock() {
   [ -d "$STATE/lock.d" ] && find "$STATE" -maxdepth 1 -name lock.d -type d -mmin +1 -exec rmdir {} \; 2>/dev/null
-  mkdir "$STATE/lock.d" 2>/dev/null || return 1
-  trap 'rmdir "$STATE/lock.d" 2>/dev/null' EXIT
-  return 0
+  mkdir "$STATE/lock.d" 2>/dev/null
 }
+free_lock() { rmdir "$STATE/lock.d" 2>/dev/null; }
 
 wait_for_lock() {  # $1 = seconds to wait
   local n=$(( ${1:-3} * 10 ))

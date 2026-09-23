@@ -13,7 +13,17 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 AERO=$(command -v aerospace || echo /opt/homebrew/bin/aerospace)
 . "$(dirname "$0")/lib.sh"
 
+# These two do their work and exit, so the lock can simply live until they do.
+take_lock_or_quit() { take_lock || return 1; trap free_lock EXIT; }
+
 [ -e "$STATE/disabled" ] && exit 0
+
+# Keep the no-fullscreen watcher alive. It is started by after-startup-command,
+# but reload-config does not re-run that and it can be killed by hand.
+nf=$(cat "$STATE/no-fullscreen.pid" 2>/dev/null || true)
+if [ -z "$nf" ] || ! kill -0 "$nf" 2>/dev/null; then
+  "$(dirname "$0")/no-fullscreen.sh" >/dev/null 2>&1 &
+fi
 
 cur=$("$AERO" list-workspaces --focused 2>/dev/null) || exit 0
 [ -n "$cur" ] || exit 0
@@ -36,7 +46,14 @@ fi
 
 # --- we were moved to another workspace without asking ---
 log "guard: JUMP $exp -> $cur, count=$count prev=$prev_count"
-take_lock || { log "guard: lock busy"; exit 0; }
+take_lock_or_quit || { log "guard: lock busy"; exit 0; }
+
+# Going back is itself a focus change, and the app being activated keeps moving
+# focus around while it settles. Those follow-on events look like fresh jumps,
+# and answering them has dragged unrelated windows off their workspace. Within a
+# moment of the last correction, just go home and stop.
+at=$(cat "$STATE/corrected-at" 2>/dev/null || echo 0)
+date +%s > "$STATE/corrected-at"
 
 read -r wid app <<<"$("$AERO" list-windows --focused --format '%{window-id} %{app-name}' 2>/dev/null | head -1)"
 [ -n "${wid:-}" ] || exit 0
@@ -45,6 +62,11 @@ before=$("$AERO" list-windows --all --format '%{window-id}' 2>/dev/null | sort -
 # Back home first, before anything slow, so the detour is a flicker.
 printf '%s' "$exp" > "$STATE/expected"
 "$AERO" workspace "$exp" 2>/dev/null
+
+if [ $(( $(date +%s) - at )) -le 1 ]; then
+  log "guard: still settling from the last correction, back only"
+  exit 0
+fi
 
 if [ "$count" -lt "$prev_count" ]; then
   log "guard: count dropped, this was a close"

@@ -12,6 +12,9 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 AERO=$(command -v aerospace || echo /opt/homebrew/bin/aerospace)
 . "$(dirname "$0")/lib.sh"
 
+# These two do their work and exit, so the lock can simply live until they do.
+take_lock_or_quit() { take_lock || return 1; trap free_lock EXIT; }
+
 sp() { osascript -e "tell application \"System Events\" to tell process \"Spotlight\" to $1" 2>/dev/null; }
 
 # One round trip per poll: "GONE" once the panel has closed, otherwise the query
@@ -141,7 +144,7 @@ same_app() {  # Spotlight's display name and AeroSpace's can differ: "iTerm" / "
 }
 same_app "$now" "$target" || { log "launcher: focus is on $now, not the $target we launched - leaving it alone"; exit 0; }
 
-take_lock || exit 0
+take_lock_or_quit || exit 0
 ids=$("$AERO" list-windows --all --format '%{window-id}' 2>/dev/null | sort -n)
 log "launcher: asking $now for a new window"
 new_window "$now"

@@ -7,7 +7,10 @@ auto-reload-config = true
 start-at-login = true
 
 after-login-command = []
-after-startup-command = []
+# Never leave a window in macOS' own fullscreen: it gets a Space of its own,
+# which AeroSpace does not manage, so the window disappears from its workspace.
+# See scripts/no-fullscreen.sh.
+after-startup-command = ['exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/no-fullscreen.sh"']
 
 # Required for i3-like behaviour: the 'split' command is a no-op while
 # normalization is on. With it off, the container tree stays where you put it.
@@ -55,9 +58,10 @@ alt-d     = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/launcher.s
 
 # --- window ---
 alt-shift-q = 'close'
-# If the window is in macOS' own fullscreen (green button), leave it and go back
-# to tiling. Otherwise toggle AeroSpace's fullscreen. '--fail-if-noop' is what
-# makes the fallback work: it exits non-zero when there was nothing to turn off.
+# Toggle AeroSpace's fullscreen - the window fills the workspace and stays in the
+# tiling. The macos-native-fullscreen branch is a safety net for when the watcher
+# is off; '--fail-if-noop' is what makes the fallback work, it exits non-zero
+# when there was no macOS fullscreen to turn off.
 alt-f       = '''exec-and-forget /bin/bash -c 'PATH=/opt/homebrew/bin:/usr/local/bin:$PATH; aerospace macos-native-fullscreen off --fail-if-noop || aerospace fullscreen' '''
 alt-shift-space = 'layout floating tiling'   # i3: floating toggle
 
