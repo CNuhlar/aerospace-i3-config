@@ -30,10 +30,10 @@ end run
 OSA
 }
 
-# One writer at a time: the guard fires on every focus change, the launcher runs
-# alongside it, and no-fullscreen.sh cuts in whenever a window goes fullscreen.
-# Callers release it themselves - the long-running one must not hold it for its
-# whole life, which an EXIT trap set in here would do.
+# One writer at a time: the guard fires on every focus change and the launcher
+# runs alongside it. Callers release it themselves - take_lock_or_quit in each
+# of them arms the EXIT trap, which is right for a script that does its work
+# and exits.
 take_lock() {
   [ -d "$STATE/lock.d" ] && find "$STATE" -maxdepth 1 -name lock.d -type d -mmin +1 -exec rmdir {} \; 2>/dev/null
   mkdir "$STATE/lock.d" 2>/dev/null

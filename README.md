@@ -35,7 +35,7 @@ Then grant AeroSpace **Accessibility** permission (System Settings → Privacy &
 | `mod+enter` | new terminal window |
 | `mod+d` | Spotlight (i3's dmenu slot) — always gives a new window |
 | `mod+shift+q` | close window |
-| `mod+f` | fullscreen (AeroSpace's, inside the workspace — macOS' own is never kept, see below) |
+| `mod+f` | fullscreen — or leave macOS' own fullscreen, see below |
 | `mod+shift+space` | toggle floating |
 
 ### Focus and movement
@@ -80,30 +80,19 @@ In resize mode: `j` / `k` / `l` / `;` and arrows resize, `shift` + those resize 
 
 Horizontal resize is intentionally inverted relative to i3's default (`j`/← grows, `;`/→ shrinks). Flip the signs in `[mode.resize.binding]` if you prefer i3's direction. Note that either way it can feel backwards: `resize width` grows the **focused window**, not "push the divider this way", so the divider moves in opposite directions depending on which side of the split you are on. AeroSpace has no directional divider command.
 
-## Three behaviours beyond plain i3
+## Two behaviours beyond plain i3
 
-### Nothing stays in macOS' native fullscreen
+### `mod+f` also escapes macOS' native fullscreen
 
-macOS' own fullscreen — the green button, `cmd+ctrl+F`, a video going full-screen — does not make a window bigger, it moves the window to a **Space of its own**. AeroSpace does not manage Spaces, so from its side the window is simply gone: `mod+1`..`mod+0` will never show it again and the only way back is a trackpad swipe. Worse, activating such an app looks to the focus guard like being dragged to another workspace, so it drags you straight back out.
-
-`scripts/no-fullscreen.sh` refuses the whole arrangement. The moment a window enters macOS fullscreen it is taken back out and given **AeroSpace's fullscreen** instead, which fills the workspace and stays part of the tiling — what fullscreen means in i3. `mod+f` toggles it off again.
-
-Catching it takes a poll, for two reasons:
-
-- AeroSpace has no event for it. `aerospace subscribe` reports focus and workspace changes and nothing else; toggling fullscreen emits nothing at all.
-- The Accessibility API cannot see windows in other Spaces — ask Safari for its windows while its only window is fullscreen elsewhere and the answer is zero. So it has to be caught as it happens, on the focused window.
-
-That is **one long-lived `osascript`** checking the focused window twice a second, which measures at 0.0% CPU. Respawning `osascript` for each check would cost ~60 ms of CPU a time; a single process that loops internally costs nothing. It is started by `after-startup-command`, and `focus-guard.sh` restarts it if it ever dies — `reload-config` does not re-run startup commands.
-
-The trade you are making: apps that want a real fullscreen Space — video players, games — will not get one.
-
-### `mod+f` fullscreen
+A window put into macOS' own fullscreen with the green button is off in its own Space where AeroSpace cannot tile it, and AeroSpace's `fullscreen` toggle does not bring it back. `mod+f` handles both cases:
 
 ```toml
 alt-f = '''exec-and-forget /bin/bash -lc 'aerospace macos-native-fullscreen off --fail-if-noop || aerospace fullscreen' '''
 ```
 
-Normally this is just AeroSpace's fullscreen toggle. The first half is a safety net for when the watcher above is off: `--fail-if-noop` exits non-zero when there was no macOS fullscreen to leave, so the `||` falls through to the normal toggle.
+`--fail-if-noop` is what makes it work: it exits non-zero when there was nothing to turn off, so the `||` falls through to the normal toggle. In native fullscreen, `mod+f` drops you back into the tiling layout and stops there.
+
+Worth knowing: while a window sits in macOS fullscreen it is **not reachable from the tiling side at all**. It has a Space of its own, `mod+1`..`mod+0` will not show it, and AeroSpace has no say over which Space is on screen — a trackpad swipe or activating the app is how you get there. Activating it also trips the focus guard below, which will take you back out and give the app a window where you were; `mod+f` from inside the fullscreen window is the clean way back.
 
 ### Activating an app no longer drags you to another workspace
 

@@ -18,13 +18,6 @@ take_lock_or_quit() { take_lock || return 1; trap free_lock EXIT; }
 
 [ -e "$STATE/disabled" ] && exit 0
 
-# Keep the no-fullscreen watcher alive. It is started by after-startup-command,
-# but reload-config does not re-run that and it can be killed by hand.
-nf=$(cat "$STATE/no-fullscreen.pid" 2>/dev/null || true)
-if [ -z "$nf" ] || ! kill -0 "$nf" 2>/dev/null; then
-  "$(dirname "$0")/no-fullscreen.sh" >/dev/null 2>&1 &
-fi
-
 cur=$("$AERO" list-workspaces --focused 2>/dev/null) || exit 0
 [ -n "$cur" ] || exit 0
 exp=$(cat "$STATE/expected" 2>/dev/null || true)
