@@ -92,6 +92,8 @@ alt-f = '''exec-and-forget /bin/bash -lc 'aerospace macos-native-fullscreen off 
 
 `--fail-if-noop` is what makes it work: it exits non-zero when there was nothing to turn off, so the `||` falls through to the normal toggle. In native fullscreen, `mod+f` drops you back into the tiling layout and stops there.
 
+`mod+f` goes through `scripts/fullscreen.sh`, which also looks after terminals. Going fullscreen hands the window its new size in two steps — first one barely different from the old (macOS clamps the window at the screen edge while it is still where it was), then the real one about 200 ms later. A program in the terminal draws for both while iTerm rewraps what is already on screen, which can leave it garbled. Once the sizes stop changing, the script sends one more `SIGWINCH` to every terminal whose size changed, so what is running there redraws once, at the size it keeps. It finds those terminals by comparing `stty size` on each session's tty before and after, not by asking iTerm: AppleScript to iTerm would need an Automation grant AeroSpace does not have, and fails silently without one. (`pkill -t` also matches nothing on macOS, hence `ps -t` + `kill`.)
+
 Worth knowing: while a window sits in macOS fullscreen it is **not reachable from the tiling side at all**. It has a Space of its own, `mod+1`..`mod+0` will not show it, and AeroSpace has no say over which Space is on screen — a trackpad swipe or activating the app is how you get there. Activating it also trips the focus guard below, which will take you back out and bring the window to where you were; `mod+f` from inside the fullscreen window is the clean way back.
 
 ### Activating an app no longer drags you to another workspace

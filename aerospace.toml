@@ -56,10 +56,9 @@ alt-d     = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/launcher.s
 
 # --- window ---
 alt-shift-q = 'close'
-# If the window is in macOS' own fullscreen (green button), leave it and go back
-# to tiling. Otherwise toggle AeroSpace's fullscreen. '--fail-if-noop' is what
-# makes the fallback work: it exits non-zero when there was nothing to turn off.
-alt-f       = '''exec-and-forget /bin/bash -c 'PATH=/opt/homebrew/bin:/usr/local/bin:$PATH; aerospace macos-native-fullscreen off --fail-if-noop || aerospace fullscreen' '''
+# Leave macOS' native fullscreen if in it, otherwise toggle AeroSpace's; then
+# make a terminal redraw once the size settles. See scripts/fullscreen.sh.
+alt-f       = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/fullscreen.sh"'
 alt-shift-space = 'layout floating tiling'   # i3: floating toggle
 
 # --- split (i3: where the next window opens) ---
