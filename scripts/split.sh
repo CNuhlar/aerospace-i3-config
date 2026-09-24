@@ -29,5 +29,7 @@ case "${1:-}" in
   --apply)
     [ -n "${AEROSPACE_WINDOW_ID:-}" ] || exit 0
     apply_split "$AEROSPACE_WINDOW_ID"
+    # Not split off on its own: it joins the row, at the end of it.
+    [ "$SPLIT_JOINED" = 1 ] || move_to_end "$AEROSPACE_WINDOW_ID"
     ;;
 esac

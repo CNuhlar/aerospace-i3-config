@@ -77,6 +77,7 @@ In resize mode (the menu bar shows **(R)**): `j` / `k` / `l` / `;` or arrows res
 ## Behaviour to know about
 
 - **Apps don't drag you to other workspaces.** Activating an app whose window is on another workspace (cmd+tab, a clicked link, a window picked in Mission Control) brings that window to you instead, placed as if newly opened, respecting `mod+h` / `mod+v`.
+- **New windows open at the end of the row or column** you are in, not in the middle next to the focused window. `mod+h` / `mod+v` still split the focused window.
 - **`mod+d` on an app that's already open gives a new window**, not the old one raised. Apps without a New Window menu item get their existing window brought over.
 - **Closing a window never makes its app reopen one.**
 - **Switch workspaces with the keys, not the CLI.** `aerospace workspace 3` from a shell looks like an app jump and you get pulled back. Use `~/.config/aerospace-i3/ws-goto.sh 3`.

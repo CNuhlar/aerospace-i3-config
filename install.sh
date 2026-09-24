@@ -22,15 +22,19 @@ for f in "$repo"/scripts/*.sh; do
 done
 echo "Linked scripts into $scripts_dir"
 
-# mod+d's cmd+space sender, so Spotlight opens at once. launcher.sh falls back
-# to a slower System Events keystroke if this cannot be built.
+# Two small native helpers: cmd-space opens Spotlight at once for mod+d, and
+# win-frames reads window positions so new windows can go to the end of their
+# row. The scripts fall back or skip the step if they cannot be built.
 if command -v clang >/dev/null 2>&1; then
-  if [ ! -x "$scripts_dir/cmd-space" ] || [ "$repo/scripts/cmd-space.c" -nt "$scripts_dir/cmd-space" ]; then
-    clang -O2 -framework ApplicationServices -o "$scripts_dir/cmd-space" "$repo/scripts/cmd-space.c" \
-      && echo "Built $scripts_dir/cmd-space"
-  fi
+  for src in "$repo"/scripts/*.c; do
+    bin="$scripts_dir/$(basename "$src" .c)"
+    if [ ! -x "$bin" ] || [ "$src" -nt "$bin" ]; then
+      clang -O2 -framework ApplicationServices -o "$bin" "$src" && echo "Built $bin"
+    fi
+  done
 else
-  echo "clang not found (xcode-select --install): mod+d will open Spotlight a little slower."
+  echo "clang not found (xcode-select --install): mod+d opens Spotlight a little slower,"
+  echo "and new windows open next to the focused one instead of at the end."
 fi
 
 if command -v aerospace >/dev/null 2>&1; then

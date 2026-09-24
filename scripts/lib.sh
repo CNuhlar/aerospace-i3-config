@@ -64,6 +64,7 @@ place_window() {  # $1 = window id, $2 = workspace, $3 = anchor window id (may b
   [ -n "${3:-}" ] && [ "$3" != "$1" ] && "$AERO" focus --window-id "$3" 2>/dev/null
   "$AERO" layout --window-id "$1" tiling 2>/dev/null
   apply_split "$1" "${3:-}"
+  [ "$SPLIT_JOINED" = 1 ] || move_to_end "$1"
   "$AERO" focus --window-id "$1" 2>/dev/null
 }
 
@@ -77,6 +78,7 @@ place_window() {  # $1 = window id, $2 = workspace, $3 = anchor window id (may b
 # opposite orientation, which is the one asked for whenever the two differ.
 apply_split() {  # $1 = window that arrived, $2 = window it was placed next to (if known)
   local line pwid want top lay have dir ws pws
+  SPLIT_JOINED=0
   line=$(cat "$STATE/split" 2>/dev/null) || return 0
   read -r pwid want top <<<"$line"
   [ -n "${pwid:-}" ] && [ "$1" != "$pwid" ] || return 0
@@ -96,7 +98,7 @@ apply_split() {  # $1 = window that arrived, $2 = window it was placed next to (
     log "split: $1 is already $want beside $pwid"
     return 0
   fi
-  "$AERO" join-with --window-id "$1" "$dir" 2>/dev/null
+  "$AERO" join-with --window-id "$1" "$dir" 2>/dev/null && SPLIT_JOINED=1
   log "split: joined $1 with $pwid, $want"
 }
 
@@ -111,6 +113,65 @@ forget_split_unless() {  # $1 = window that now has focus
     rm -f "$STATE/split"
     log "split: focus went to $1, dropping the choice made on $pwid"
   fi
+}
+
+# Put a window that just landed at the end of its row (or column) instead of
+# right after the window that had focus, which is where AeroSpace puts it.
+#
+# AeroSpace cannot show its tree, so the row is read off the screen: in a
+# horizontal container every child spans the window's full height, so the
+# windows after it are the ones to its right that sit within its vertical band
+# (and the same turned sideways for a vertical one). If those are all plain
+# windows, stepping past them with one swap each is enough. If one is shorter
+# than the band, it is part of a nested split: then the float-then-tile trick of
+# place_window puts the window right after the last of them, inside that split,
+# and one move in the row's direction takes it out to just after the split.
+FRAMES="$(dirname "${BASH_SOURCE[0]}")/win-frames"
+move_to_end() {  # $1 = window id
+  local lay ws ids all f prev dir x y w h anchor full count
+  [ -x "$FRAMES" ] || return 0
+  read -r lay ws <<<"$("$AERO" list-windows --all --format '%{window-id} %{window-layout} %{workspace}' 2>/dev/null | awk -v w="$1" '$1==w{print $2, $3}')"
+  case "$lay" in h_tiles) dir=right ;; v_tiles) dir=down ;; *) return 0 ;; esac
+  [ "$ws" = "$("$AERO" list-workspaces --focused 2>/dev/null)" ] || return 0
+  # Wait for the layout to reach the window: two equal readings in a row.
+  prev=""
+  for _ in $(seq 12); do
+    all=$("$FRAMES" 2>/dev/null)
+    f=$(printf '%s\n' "$all" | awk -v w="$1" '$1==w{print $2, $3, $4, $5; exit}')
+    [ -n "$f" ] && [ "$f" = "$prev" ] && break
+    prev=$f; sleep 0.03
+  done
+  [ -n "$f" ] || return 0
+  read -r x y w h <<<"$f"
+  ids=$("$AERO" list-windows --workspace "$ws" --format '%{window-id} %{window-layout}' 2>/dev/null | awk -v n="$1" '$2 != "floating" && $1 != n {print $1}')
+  # The windows after this one in its row: the last of them, whether it spans
+  # the full row (a direct sibling) or not (inside a nested split), and how
+  # many there are if every one of them is a direct sibling.
+  read -r anchor full count <<<"$(printf '%s\n' "$all" | awk -v ids=" $(echo $ids) " -v o="$dir" -v x="$x" -v y="$y" -v w="$w" -v h="$h" '
+    index(ids, " " $1 " ") {
+      if (o == "right") { inband = ($3 >= y-4 && $3+$5 <= y+h+4); after = ($2 >= x+w-4); key = $2*100000 + $3; span = ($5 >= h-8) }
+      else              { inband = ($2 >= x-4 && $2+$4 <= x+w+4); after = ($3 >= y+h-4); key = $3*100000 + $2; span = ($4 >= w-8) }
+      if (inband && after) {
+        n++; if (!span) nested = 1
+        if (best == "" || key > bestkey) { best = $1; bestkey = key; bestspan = span }
+      }
+    }
+    END { if (best != "") print best, bestspan, (nested ? 0 : n) }')"
+  [ -n "$anchor" ] || return 0   # already last
+  if [ "${count:-0}" -gt 0 ]; then
+    # Only plain windows after it: step past them one swap at a time, which
+    # just reorders the row with no detour through floating.
+    log "end: $1 steps $dir past $count"
+    for _ in $(seq "$count"); do "$AERO" move --window-id "$1" --boundaries-action fail "$dir" 2>/dev/null || break; done
+    return 0
+  fi
+  log "end: $1 goes after $anchor (${dir}, $([ "$full" = 1 ] && echo direct || echo nested))"
+  "$AERO" layout --window-id "$1" floating 2>/dev/null
+  "$AERO" focus --window-id "$1" 2>/dev/null
+  "$AERO" focus --window-id "$anchor" 2>/dev/null
+  "$AERO" layout --window-id "$1" tiling 2>/dev/null
+  [ "$full" = 1 ] || "$AERO" move --window-id "$1" --boundaries-action fail "$dir" 2>/dev/null
+  "$AERO" focus --window-id "$1" 2>/dev/null
 }
 
 # One writer at a time: the guard fires on every focus change and the launcher

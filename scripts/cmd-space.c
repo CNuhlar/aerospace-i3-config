@@ -8,7 +8,7 @@
 // The shortcut is only recognised with a real cmd press around it, so press and
 // release cmd the way a keyboard does rather than flagging a lone space.
 //
-// Built by install.sh: clang -O2 -framework ApplicationServices -o cmd-space cmd-space.c
+// Built by install.sh.
 #include <ApplicationServices/ApplicationServices.h>
 #include <unistd.h>
 
