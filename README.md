@@ -92,17 +92,17 @@ alt-f = '''exec-and-forget /bin/bash -lc 'aerospace macos-native-fullscreen off 
 
 `--fail-if-noop` is what makes it work: it exits non-zero when there was nothing to turn off, so the `||` falls through to the normal toggle. In native fullscreen, `mod+f` drops you back into the tiling layout and stops there.
 
-Worth knowing: while a window sits in macOS fullscreen it is **not reachable from the tiling side at all**. It has a Space of its own, `mod+1`..`mod+0` will not show it, and AeroSpace has no say over which Space is on screen — a trackpad swipe or activating the app is how you get there. Activating it also trips the focus guard below, which will take you back out and give the app a window where you were; `mod+f` from inside the fullscreen window is the clean way back.
+Worth knowing: while a window sits in macOS fullscreen it is **not reachable from the tiling side at all**. It has a Space of its own, `mod+1`..`mod+0` will not show it, and AeroSpace has no say over which Space is on screen — a trackpad swipe or activating the app is how you get there. Activating it also trips the focus guard below, which will take you back out and bring the window to where you were; `mod+f` from inside the fullscreen window is the clean way back.
 
 ### Activating an app no longer drags you to another workspace
 
-By default, activating an app follows its window: if Safari's only window is on workspace 3 and you hit Spotlight from workspace 1, AeroSpace moves you to workspace 3. `scripts/focus-guard.sh`, wired up as `on-focus-changed`, keeps you put and gives the app a **new window on the workspace you are on**.
+By default, activating an app follows its window: if Safari's only window is on workspace 3 and you hit Spotlight from workspace 1, AeroSpace moves you to workspace 3. `scripts/focus-guard.sh`, wired up as `on-focus-changed`, keeps you put and **brings the window that came forward to the workspace you are on** — a window picked in Mission Control, the browser window a clicked link opened in, the app you `cmd+tab`bed to. It lands where a newly opened window would: next to the window you were on, on the side your last `mod+h` / `mod+v` picked.
 
 How it knows the difference between your own workspace switch and an app jump: every binding that changes workspaces goes through `scripts/ws-goto.sh`, which records the intended workspace *before* switching. When focus lands somewhere that was not asked for, the guard takes over.
 
 Two details make it feel instant rather than like a round trip:
 
-**Going back happens first.** AeroSpace has already moved you by the time any callback runs, so the detour cannot be prevented — only made short. The guard switches back before it does anything else, and asks for the new window afterwards. Measured on the jump it was written for: 75 ms on the wrong workspace, a flicker rather than a visible trip.
+**Going back happens first.** AeroSpace has already moved you by the time any callback runs, so the detour cannot be prevented — only made short. The guard switches back before it does anything else, and fetches the window afterwards. Measured on the jump it was written for: 75 ms on the wrong workspace, a flicker rather than a visible trip.
 
 ```
 open -a Safari        t+0ms
@@ -110,7 +110,9 @@ open -a Safari        t+0ms
   -> workspace 2      t+122ms   (guard puts you back)
 ```
 
-**The new window is requested through the app's own File menu**, not with `cmd+N`. By the time the guard asks, you are already back home and the app is no longer frontmost — a keystroke would land in whatever window is now in front. Clicking `File > New Window` in the Accessibility API targets that process directly and works while it sits in the background. The scan — shared by the guard and the launcher, in `scripts/lib.sh` — looks through the File menu (also Shell, for terminals) for an item whose name contains both "New" and "Window", which covers "New Window", "New Finder Window" and "New Window with Current Profile" alike.
+**The window is placed as a new one would be.** `move-node-to-workspace` alone ignores splits: it appends the window to the workspace's root container, so it always lands along the root's orientation no matter what `mod+h` / `mod+v` said. What AeroSpace does place like a new window is a floating window turning tiling — that binds it next to the workspace's most recent window, inside its container. So the guard floats the window, moves it, and tiles it again (`place_window` in `scripts/lib.sh`). Two traps are handled there: the floating container itself becomes the workspace's most recent child the moment the window lands in it, and once it is empty again the lookup finds no window and falls back to the root — focusing the window you were on fixes that; and focusing a window that already has focus marks nothing, so the arriving window is focused first, then yours.
+
+**`mod+d` still asks for a new window, through the app's own File menu**, not with `cmd+N`. By the time the guard asks, you are already back home and the app is no longer frontmost — a keystroke would land in whatever window is now in front. Clicking `File > New Window` in the Accessibility API targets that process directly and works while it sits in the background. The scan — shared by the guard and the launcher, in `scripts/lib.sh` — looks through the File menu (also Shell, for terminals) for an item whose name contains both "New" and "Window", which covers "New Window", "New Finder Window" and "New Window with Current Profile" alike.
 
 ### Launching an app you already have open gives a new window
 
@@ -129,15 +131,14 @@ Dismissing the panel has to stay free, and that needs one more reading: Spotligh
 It also knows when *not* to act:
 
 - **Closing a window never reopens it.** Closing the last window an app has on this workspace hands focus to that app's window somewhere else, which looks exactly like an activation from the outside. Answering that with a new window means the app springs back every time you close it. The guard compares the total window count against the previous focus change: if it went down, this was a close, so it only takes you back and stops there.
-- **An app that already has a window here just gets focused.** No second, third, fourth window piling up each time you activate it — the goal is not being dragged away, not manufacturing windows.
-- **Browsers come to you instead of being cloned.** Clicking a link in WhatsApp activates Safari, and Safari opens the link in the window it already has — on whatever workspace that is. Handing it a new window here would leave you looking at an empty one while the page you asked for sits on another workspace. So for the apps listed in `FOLLOW_APPS` (`scripts/lib.sh`: the browsers, plus Preview) the guard drags the window that just came forward to you rather than asking for a fresh one. `mod+d` is exempt — there a new window is the point. Override the list with your own, one app name per line, in `~/.cache/aerospace-i3/follow-apps`.
+- **The window comes to you, not a copy of it.** An earlier version asked the app for a fresh window instead. That was wrong for everything except `mod+d`: a link clicked in WhatsApp opens in the browser window that already exists, so a fresh one here was empty; a window picked in Mission Control is the one you wanted, not a blank sibling; and apps with no File > New Window (WhatsApp) made you wait over a second for a window that never came before falling back to the old one anyway. Mission Control cannot be told apart from `cmd+tab` at this point — its overlay is gone from the Accessibility tree before AeroSpace even switches workspace — so the rule is the same for all of them.
 - **It does not answer its own echo.** Switching back is itself a focus change, and an app being activated keeps moving focus around for a moment afterwards. Treating those as fresh jumps once had the guard drag an unrelated window off its workspace; within a second of a correction it now only takes you home and stops.
 
 Things worth knowing before you keep this:
 
-- **Apps with no such menu item fall back to being summoned.** If no new window appears within ~1.2s, the guard moves the app's existing window to your workspace instead, so you are never stranded — but you get the old window, not a fresh one.
+- **Under `mod+d`, apps with no New Window menu item fall back to being summoned.** If no new window appears within ~1.2s, the guard brings the app's existing window to your workspace instead, so you are never stranded — but you get the old window, not a fresh one.
 - **Accepting a remembered query without retyping it gets you a raise, not a new window.** `mod+d`, return, on the search Spotlight still had in the box reads as an untouched prompt. Type a character and it behaves normally; this is the price of dismissal being free, and dismissal is the far more common move.
-- **`cmd+tab` behaves differently.** Switching to an app that lives on another workspace now gives you a new window here rather than taking you there.
+- **`cmd+tab` behaves differently.** Switching to an app whose window lives on another workspace brings that window here rather than taking you there. It leaves the other workspace one window short.
 - **Switch workspaces via the bindings, not the CLI.** Running `aerospace workspace 3` by hand looks exactly like an app jump to the guard, and it will pull you back. Use `~/.config/aerospace-i3/ws-goto.sh 3` instead.
 - **Turn it off any time** with `touch ~/.cache/aerospace-i3/disabled` — no config edit, no reload.
 - **Watch it think** with `touch ~/.cache/aerospace-i3/debug`, then `tail -f ~/.cache/aerospace-i3/log`. Every decision either script makes is one line. `rm` the flag to stop.

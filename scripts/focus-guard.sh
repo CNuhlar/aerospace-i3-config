@@ -1,6 +1,6 @@
 #!/bin/bash
 # Activating an app must not drag you to whatever workspace its window happens to
-# live on. Go back to where you were, and give the app a window here instead.
+# live on. Go back to where you were, and bring the window here instead.
 #
 # The mod+d "give me a new window" half lives in launcher.sh; all this script
 # takes from it is launch_pending, which says the jump about to happen was asked
@@ -55,6 +55,8 @@ before=$("$AERO" list-windows --all --format '%{window-id}' 2>/dev/null | sort -
 # Back home first, before anything slow, so the detour is a flicker.
 printf '%s' "$exp" > "$STATE/expected"
 "$AERO" workspace "$exp" 2>/dev/null
+# Going home focuses the window you were on. Whatever arrives goes next to it.
+anchor=$("$AERO" list-windows --focused --format '%{window-id}' 2>/dev/null | head -1)
 
 if [ $(( $(date +%s) - at )) -le 1 ]; then
   log "guard: still settling from the last correction, back only"
@@ -66,30 +68,18 @@ if [ "$count" -lt "$prev_count" ]; then
   exit 0
 fi
 
-# Some apps activate because something handed them a page to show - a link
-# clicked in another app, a file opened. The window that just came forward is
-# the one holding it, so bring that one here. A fresh window would be empty and
-# would strand the thing you actually asked for on the app's own workspace.
-# mod+d is exempt: there a new window is the whole point. List in lib.sh.
-if ! launch_pending && follows_you "$app"; then
-  log "guard: $app follows you, dragging window $wid to $exp"
-  "$AERO" move-node-to-workspace --window-id "$wid" "$exp" 2>/dev/null
-  "$AERO" focus --window-id "$wid" 2>/dev/null
+# Whatever came forward is what you asked for - a window picked in Mission
+# Control, the browser window a clicked link landed in, the app you cmd+tabbed
+# to. Bring that one here, placed as a new window would be, so mod+h / mod+v
+# decide the side. Asking the app for a fresh window instead left you with an
+# empty one, and apps without File > New Window made you wait for nothing.
+if ! launch_pending; then
+  log "guard: bringing $app window $wid to $exp next to ${anchor:-nothing}"
+  place_window "$wid" "$exp" "$anchor"
   exit 0
 fi
 
-# Already have a window of this app here? Focus it instead of piling up more -
-# unless mod+d asked for a new one on purpose.
-if ! launch_pending; then
-  here=$("$AERO" list-windows --workspace "$exp" --format '%{window-id} %{app-name}' 2>/dev/null \
-         | awk -v a="$app" '{id=$1; sub(/^[^ ]* /,""); if ($0 == a) {print id; exit}}')
-  if [ -n "$here" ]; then
-    log "guard: $app already has window $here on $exp, focusing it"
-    "$AERO" focus --window-id "$here" 2>/dev/null
-    exit 0
-  fi
-fi
-
+# mod+d: a new window is the whole point.
 log "guard: asking $app for a new window"
 new_window "$app"
 
@@ -105,14 +95,17 @@ done
 
 if [ -n "$new" ]; then
   where=$("$AERO" list-windows --all --format '%{window-id} %{workspace}' 2>/dev/null | awk -v w="$new" '$1==w{print $2}')
-  [ -n "$where" ] && [ "$where" != "$exp" ] && "$AERO" move-node-to-workspace --window-id "$new" "$exp" 2>/dev/null
-  "$AERO" focus --window-id "$new" 2>/dev/null
+  if [ -n "$where" ] && [ "$where" != "$exp" ]; then
+    place_window "$new" "$exp" "$anchor"
+  else
+    "$AERO" focus --window-id "$new" 2>/dev/null
+  fi
   log "guard: new window $new is on $exp"
 else
   # No File > New Window, or the app ignored it: summon the existing window
   # rather than leaving the app unreachable from here.
-  log "guard: no new window appeared, dragging $wid over instead"
-  "$AERO" move-node-to-workspace --window-id "$wid" "$exp" 2>/dev/null
+  log "guard: no new window appeared, bringing $wid over instead"
+  place_window "$wid" "$exp" "$anchor"
 fi
 
 printf '%s' "$exp" > "$STATE/expected"

@@ -36,6 +36,36 @@ end run
 OSA
 }
 
+# Bring a window to a workspace and put it where a newly opened window would go:
+# next to the anchor (the window you were on), inside its container, so the last
+# mod+h / mod+v decides the side. move-node-to-workspace alone ignores all that
+# and appends to the workspace's root container.
+#
+# What does place it properly is AeroSpace turning a floating window into a
+# tiling one - that goes through the same code as a new window, which binds next
+# to the workspace's most recent window. Two traps on the way:
+#  - the floating container becomes the workspace's most recent child as soon as
+#    the window lands in it, and with that empty again at tiling time the lookup
+#    finds no window and falls back to the root. Focusing the anchor fixes that.
+#  - focusing a window that already has focus is a no-op and marks nothing, so
+#    focus the arriving window first, then the anchor.
+# A window that was floating to begin with stays floating.
+place_window() {  # $1 = window id, $2 = workspace, $3 = anchor window id (may be empty)
+  local was
+  was=$("$AERO" list-windows --all --format '%{window-id} %{window-layout}' 2>/dev/null | awk -v w="$1" '$1==w{print $2}')
+  if [ "$was" = floating ]; then
+    "$AERO" move-node-to-workspace --window-id "$1" "$2" 2>/dev/null
+    "$AERO" focus --window-id "$1" 2>/dev/null
+    return
+  fi
+  "$AERO" layout --window-id "$1" floating 2>/dev/null
+  "$AERO" move-node-to-workspace --window-id "$1" "$2" 2>/dev/null
+  "$AERO" focus --window-id "$1" 2>/dev/null
+  [ -n "${3:-}" ] && [ "$3" != "$1" ] && "$AERO" focus --window-id "$3" 2>/dev/null
+  "$AERO" layout --window-id "$1" tiling 2>/dev/null
+  "$AERO" focus --window-id "$1" 2>/dev/null
+}
+
 # One writer at a time: the guard fires on every focus change and the launcher
 # runs alongside it. Callers release it themselves - take_lock_or_quit in each
 # of them arms the EXIT trap, which is right for a script that does its work
@@ -61,23 +91,3 @@ launch_pending() {
   [ "$at" -gt 0 ] && [ $(( $(date +%s) - at )) -le "$LAUNCH_TTL" ]
 }
 clear_launch() { rm -f "$STATE/launch-at"; }
-
-# Apps that should be brought to you rather than handed a new empty window when
-# they activate from another workspace. See focus-guard.sh for why. Names are
-# AeroSpace's app names, one per line; override the list entirely by writing
-# your own to ~/.cache/aerospace-i3/follow-apps.
-FOLLOW_APPS='Safari
-Google Chrome
-Firefox
-Arc
-Brave Browser
-Microsoft Edge
-Preview'
-follows_you() {
-  [ -n "${1:-}" ] || return 1
-  if [ -r "$STATE/follow-apps" ]; then
-    grep -qxiF "$1" "$STATE/follow-apps"
-  else
-    printf '%s\n' "$FOLLOW_APPS" | grep -qxiF "$1"
-  fi
-}
