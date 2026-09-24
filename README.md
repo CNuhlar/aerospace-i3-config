@@ -94,6 +94,9 @@ Besides linking the config into `~/.aerospace.toml` and the scripts into `~/.con
 ## Tips
 
 - **Workspace indicator in the menu bar:** AeroSpace menu bar icon → Experimental UI Settings → *i3 style ordered*. Stored in AeroSpace's preferences, not this config, so set it on each machine.
+
+  ![Menu bar indicator showing workspaces 1, 3 and 5, with 5 highlighted](docs/menubar.png)
+
 - **Claude Code shows empty rows after `mod+f`:** switch it to the fullscreen renderer with `/tui fullscreen`.
 - **`mod+d` opens a Finder search instead of Spotlight:** you are holding `alt` longer than 0.3s; raise the `delay` in `scripts/launcher.sh`.
 - **Another terminal:** change the `alt-enter` binding. Ghostty, Alacritty and kitty open a window with plain `open -na <App>`.
