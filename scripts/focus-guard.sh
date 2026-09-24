@@ -66,6 +66,18 @@ if [ "$count" -lt "$prev_count" ]; then
   exit 0
 fi
 
+# Some apps activate because something handed them a page to show - a link
+# clicked in another app, a file opened. The window that just came forward is
+# the one holding it, so bring that one here. A fresh window would be empty and
+# would strand the thing you actually asked for on the app's own workspace.
+# mod+d is exempt: there a new window is the whole point. List in lib.sh.
+if ! launch_pending && follows_you "$app"; then
+  log "guard: $app follows you, dragging window $wid to $exp"
+  "$AERO" move-node-to-workspace --window-id "$wid" "$exp" 2>/dev/null
+  "$AERO" focus --window-id "$wid" 2>/dev/null
+  exit 0
+fi
+
 # Already have a window of this app here? Focus it instead of piling up more -
 # unless mod+d asked for a new one on purpose.
 if ! launch_pending; then

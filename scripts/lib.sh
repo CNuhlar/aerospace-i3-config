@@ -55,3 +55,23 @@ launch_pending() {
   [ "$at" -gt 0 ] && [ $(( $(date +%s) - at )) -le "$LAUNCH_TTL" ]
 }
 clear_launch() { rm -f "$STATE/launch-at"; }
+
+# Apps that should be brought to you rather than handed a new empty window when
+# they activate from another workspace. See focus-guard.sh for why. Names are
+# AeroSpace's app names, one per line; override the list entirely by writing
+# your own to ~/.cache/aerospace-i3/follow-apps.
+FOLLOW_APPS='Safari
+Google Chrome
+Firefox
+Arc
+Brave Browser
+Microsoft Edge
+Preview'
+follows_you() {
+  [ -n "${1:-}" ] || return 1
+  if [ -r "$STATE/follow-apps" ]; then
+    grep -qxiF "$1" "$STATE/follow-apps"
+  else
+    printf '%s\n' "$FOLLOW_APPS" | grep -qxiF "$1"
+  fi
+}
