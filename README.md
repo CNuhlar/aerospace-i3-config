@@ -187,6 +187,27 @@ aerospace list-windows --all --format '%{window-id} %{app-pid} %{app-name}'
 
 The binding simulates `cmd+space`. But if `alt` is still physically held when the keystroke fires, macOS sees `cmd+alt+space` — which is "Spotlight window", a Finder search. Hence the `delay 0.3` before the keystroke, which waits for `alt` to be released. Increase it if you hold `mod` for longer than that.
 
+### Three-finger swipe up shows only specks
+
+Mission Control lays windows out roughly where they really are, and scales that
+layout down to fit the screen. AeroSpace hides a workspace by parking its
+windows in an off-screen corner, so with anything open on another workspace the
+layout has to span an area several times the display — and every window is
+scaled down to an unreadable speck in a corner.
+
+Turning on **Group windows by application** replaces that spatial layout with
+one stack per app, which reads fine no matter where the windows actually sit:
+
+```sh
+defaults write com.apple.dock expose-group-apps -bool true
+killall Dock
+```
+
+`install.sh` sets this. It is the same checkbox as System Settings → Desktop &
+Dock → Mission Control → *Group windows by application*. No AeroSpace setting
+controls where hidden windows are parked, so this is the fix — the alternative
+is turning the gesture off in System Settings → Trackpad → More Gestures.
+
 ### Workspace indicator in the menu bar
 
 No extra tool needed. AeroSpace ships one: its menu bar icon → **Experimental UI Settings → i3 style ordered** shows non-empty workspaces in ascending order with the active one highlighted, which is the i3bar behaviour most people want.

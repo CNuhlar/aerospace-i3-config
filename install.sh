@@ -28,3 +28,14 @@ else
   echo "AeroSpace CLI not found. Install it first:"
   echo "  brew install --cask nikitabobko/tap/aerospace"
 fi
+
+# Mission Control lays windows out where they actually are. AeroSpace parks the
+# windows of every hidden workspace in an off-screen corner, so the layout has
+# to span far beyond the display and every window shrinks to a speck. Grouping
+# by application replaces that layout with per-app stacks, which is readable
+# again. See README, "Three-finger swipe up shows only specks".
+if [ "$(defaults read com.apple.dock expose-group-apps 2>/dev/null)" != "1" ]; then
+  defaults write com.apple.dock expose-group-apps -bool true
+  killall Dock 2>/dev/null || true
+  echo "Mission Control set to group windows by application."
+fi
