@@ -32,11 +32,26 @@ printf '%s' "$count" > "$STATE/count"
 
 log "guard: focus change, cur=$cur exp=$exp count=$count prev=$prev_count focused=[$("$AERO" list-windows --focused --format '%{window-id} %{app-name}' 2>/dev/null | head -1)]"
 
+# A workspace key was pressed a moment ago. This is that switch, or one from a
+# quick run of them, and "expected" may already name a later target than the
+# one this callback was fired for. Acting on it moved windows between the
+# workspaces you were flipping through - and so did writing our reading of the
+# current workspace back over the newer target. Touch nothing.
+sw=$(stat -f %m "$STATE/switch-at" 2>/dev/null || echo 0)
+recent_switch=0
+[ $(( $(date +%s) - sw )) -le 1 ] && recent_switch=1
+
 if [ -z "$exp" ] || [ "$exp" = '*' ] || [ "$exp" = "$cur" ]; then
   # Focus moved within where you are. A window arriving from elsewhere is
   # handled below and must not cancel a pending mod+h / mod+v.
   forget_split_unless "$("$AERO" list-windows --focused --format '%{window-id}' 2>/dev/null | head -1)"
-  printf '%s' "$cur" > "$STATE/expected"
+  # Only fill in a target nobody set. ws-goto.sh owns it otherwise.
+  [ "$recent_switch" = 0 ] && [ "$exp" != "$cur" ] && printf '%s' "$cur" > "$STATE/expected"
+  exit 0
+fi
+
+if [ "$recent_switch" = 1 ]; then
+  log "guard: on $cur while switching to $exp, not a jump"
   exit 0
 fi
 

@@ -10,6 +10,12 @@ mkdir -p "$STATE"
 
 record() { "$AERO" list-workspaces --focused > "$STATE/expected" 2>/dev/null; }
 
+# When this key was last pressed. Pressed quickly in a row, the guard's focus
+# callback for one switch runs after the next has already rewritten "expected",
+# and would read its own switch as an app jump. The guard stands down for a
+# moment after any of these.
+touch "$STATE/switch-at"
+
 case "${1:-}" in
   --back-and-forth)
     # Target is not known up front: '*' tells the guard to accept whatever comes.
