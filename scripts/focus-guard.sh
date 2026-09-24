@@ -93,12 +93,14 @@ fi
 log "guard: asking $app for a new window"
 new_window "$app"
 
+# Look before sleeping: the window is usually already there on the first look,
+# and a sleep in front of it is dead time you watch go by.
 new=""
-for _ in 1 2 3 4 5 6; do
-  sleep 0.2
+for _ in $(seq 24); do
   new=$("$AERO" list-windows --all --format '%{window-id}' 2>/dev/null | sort -n \
         | comm -13 <(printf '%s\n' "$before") - | head -1)
   [ -n "$new" ] && break
+  sleep 0.05
 done
 
 if [ -n "$new" ]; then

@@ -12,6 +12,12 @@ new_window() {
 on run argv
   set procName to item 1 of argv
   tell application "System Events" to tell process procName
+    -- Almost every app spells it exactly this way, and naming the item outright
+    -- is one round trip where reading the menu item by item is several.
+    try
+      click menu item "New Window" of menu 1 of menu bar item "File" of menu bar 1
+      return "ok"
+    end try
     repeat with mb in {"File", "Shell", "Dosya"}
       try
         set fm to menu 1 of menu bar item mb of menu bar 1

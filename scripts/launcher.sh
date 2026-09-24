@@ -17,45 +17,71 @@ take_lock_or_quit() { take_lock || return 1; trap free_lock EXIT; }
 
 sp() { osascript -e "tell application \"System Events\" to tell process \"Spotlight\" to $1" 2>/dev/null; }
 
-# One round trip per poll: "GONE" once the panel has closed, otherwise the query
-# text, whether it has been typed into, and the name of the highlighted result -
-# the app Return would open.
+# Watch the panel for as long as it is up, reporting as it goes: a line per look,
+# then "GONE" once it has closed.
 #
-# Reading the highlight is the whole trick: it says what the launch was aimed at,
-# so a focus change that lands somewhere else is not mistaken for the launch.
+# One interpreter for the whole wait, not one per look. Spawning osascript costs
+# more than the question does, and that overhead sat squarely between Return and
+# the new window - the panel could be gone a good half second before we noticed.
+# Streaming out of a single process, we hear about it within a tick.
+#
+# Each line carries the query text, whether it has been typed into, and the name
+# of the highlighted result - the app Return would open. Reading the highlight is
+# the whole trick: it says what the launch was aimed at, so a focus change that
+# lands somewhere else is not mistaken for the launch.
 #
 # "Typed into" matters because Spotlight reopens holding your last search, fully
 # selected. Left alone it stays selected; the first keystroke replaces it. So a
 # selection covering the whole field means nobody has touched this prompt, and
 # whatever is in it is a leftover rather than a request.
-sp_probe() {
-  osascript 2>/dev/null <<'OSA'
+#
+# The full reading is still only every third look: it walks the result list, and
+# Spotlight is a live UI that drops clicks and keystrokes when its Accessibility
+# tree is worked too hard. Checking "are you still there" is cheap enough to do
+# every time, and that is the one we are waiting on.
+sp_watch() {
+  osascript 2>&1 >/dev/null <<'OSA'
 tell application "System Events" to tell process "Spotlight"
-  if not (exists window 1) then return "GONE"
-  set q to ""
-  set target to ""
-  set touched to "0"
-  try
-    set tf to text field 1 of group 1 of window 1
-    set q to value of tf
-    if q is not "" and ((value of attribute "AXSelectedText" of tf) as text) is not q then set touched to "1"
-  end try
-  try
-    repeat with l in lists of list 1 of scroll area 1 of group 1 of window 1
-      repeat with e in UI elements of l
-        if (value of attribute "AXSelected" of e) is true then
-          set target to name of static text 1 of e
-          exit repeat
-        end if
-      end repeat
-      if target is not "" then exit repeat
-    end repeat
-  end try
-  return "Q" & touched & q & tab & target
+  set i to 0
+  repeat 900 times
+    set i to i + 1
+    if not (exists window 1) then
+      log "GONE"
+      return
+    end if
+    if i mod 3 is 0 then
+      set q to ""
+      set target to ""
+      set touched to "0"
+      try
+        set tf to text field 1 of group 1 of window 1
+        set q to value of tf
+        if q is not "" and ((value of attribute "AXSelectedText" of tf) as text) is not q then set touched to "1"
+      end try
+      try
+        repeat with l in lists of list 1 of scroll area 1 of group 1 of window 1
+          repeat with e in UI elements of l
+            if (value of attribute "AXSelected" of e) is true then
+              set target to name of static text 1 of e
+              exit repeat
+            end if
+          end repeat
+          if target is not "" then exit repeat
+        end repeat
+      end try
+      log "Q" & touched & q & tab & target
+    end if
+    delay 0.05
+  end repeat
 end tell
 OSA
 }
 focused_app() { "$AERO" list-windows --focused --format '%{app-name}' 2>/dev/null | head -1; }
+same_app() {  # Spotlight's display name and AeroSpace's can differ: "iTerm" / "iTerm2"
+  local a b; a=$(printf '%s' "$1" | tr 'A-Z' 'a-z'); b=$(printf '%s' "$2" | tr 'A-Z' 'a-z')
+  [ -n "$a" ] && [ -n "$b" ] && { case "$a" in "$b"*) return 0;; esac; case "$b" in "$a"*) return 0;; esac; }
+  return 1
+}
 win_count() { "$AERO" list-windows --all --count 2>/dev/null || echo 0; }
 
 # Only one watcher at a time. Hitting mod+d again - or leaving the panel open
@@ -67,40 +93,34 @@ printf '%s' "$$" > "$STATE/launcher.pid"
 
 was=$(focused_app)
 before=$(win_count)
+ws0=$("$AERO" list-workspaces --focused 2>/dev/null)
 
 # The delay matters: if alt is still held when cmd+space is sent, macOS reads it
 # as cmd+alt+space, which is "Spotlight window" and opens a Finder search.
 osascript -e 'delay 0.3' -e 'tell application "System Events" to key code 49 using {command down}' >/dev/null 2>&1
 
-for _ in $(seq 20); do
-  [ "$(sp '(exists window 1)')" = "true" ] && break
-  sleep 0.1
+# Each of these probes is an osascript round trip, which is throttle enough on
+# its own - a sleep on top of it only adds to the wait before the panel shows.
+opened=0
+for _ in $(seq 30); do
+  [ "$(sp '(exists window 1)')" = "true" ] && { opened=1; break; }
+  sleep 0.05
 done
-[ "$(sp '(exists window 1)')" = "true" ] || { log "launcher: Spotlight never opened"; exit 0; }
+[ "$opened" = 1 ] || { log "launcher: Spotlight never opened"; exit 0; }
 log "launcher: open, was=[$was] count=$before"
 
-# Sit on the panel until it goes away.
-#
-# Poll gently: Spotlight is a live UI, and several of these scripts walking its
-# Accessibility tree at once makes it drop clicks and keystrokes. The full probe
-# runs every third tick, the cheap "is it still up" check covers the rest. The
-# query is a few hundred ms stale at worst, and it has stopped changing by the
-# time anyone hits Return.
+# Sit on the panel until it goes away, keeping the last reading of what Return
+# would open. The query is a few hundred ms stale at worst, and it has stopped
+# changing by the time anyone hits Return.
 #
 # The reading taken as the panel tears down always claims the field was touched -
 # the selection collapses on the way out - so the one before it is what counts.
 # A query that differs from the one we first saw is a launch either way, which
 # covers typing something short and hitting Return before the next look.
-query=""; first=""; target=""; typed=0; prev_typed=0; tick=0
-for _ in $(seq 400); do
-  tick=$((tick + 1))
-  if [ $((tick % 3)) -ne 0 ]; then
-    [ "$(sp '(exists window 1)')" = "true" ] || break
-    sleep 0.15
-    continue
-  fi
-  v=$(sp_probe)
+query=""; first=""; target=""; typed=0; prev_typed=0
+while IFS= read -r v; do
   [ "$v" = "GONE" ] && break
+  case "$v" in Q*) ;; *) continue ;; esac
   v="${v#Q}"
   prev_typed=$typed
   typed="${v%"${v#?}"}"
@@ -109,8 +129,7 @@ for _ in $(seq 400); do
   [ -z "$first" ] && first="$q"
   [ -n "$q" ] && query="$q"
   [ -n "$t" ] && target="$t"
-  sleep 0.15
-done
+done < <(sp_watch)
 [ "$query" = "$first" ] || prev_typed=1
 log "launcher: closed, query=[$query] first=[$first] target=[$target] typed=$prev_typed"
 [ "$prev_typed" = 1 ] && [ -n "$target" ] || exit 0
@@ -120,8 +139,27 @@ log "launcher: closed, query=[$query] first=[$first] target=[$target] typed=$pre
 date +%s > "$STATE/launch-at"
 
 # Give the activation - and the guard, if the app lives on another workspace -
-# room to finish before judging what happened.
-sleep 0.6
+# room to finish before judging what happened. Sitting out a flat moment for
+# that is most of the gap between Return and the window appearing, and the
+# common case has nothing to wait for: the app's window was already on this
+# workspace, so nothing jumped and no guard is coming. Watch for that instead.
+#
+# Confirm it twice: the jump can lag the activation by a beat, and reading
+# "still here" in that gap would send us off to open a second window behind the
+# guard's back.
+settled=0
+for _ in $(seq 20); do
+  now=$(focused_app)
+  count=$(win_count)
+  [ "$count" -gt "$before" ] && break
+  if [ "$("$AERO" list-workspaces --focused 2>/dev/null)" = "$ws0" ] && same_app "$now" "$target"; then
+    settled=$((settled + 1))
+    [ "$settled" -ge 2 ] && break
+  else
+    settled=0
+  fi
+  sleep 0.05
+done
 wait_for_lock 3
 
 now=$(focused_app)
@@ -137,11 +175,6 @@ clear_launch
 # Only the app the launch was aimed at gets a window. If focus has gone anywhere
 # else - you carried on and switched workspace while this was settling, or
 # Spotlight was dismissed without launching - there is nothing to do here.
-same_app() {  # Spotlight's display name and AeroSpace's can differ: "iTerm" / "iTerm2"
-  local a b; a=$(printf '%s' "$1" | tr 'A-Z' 'a-z'); b=$(printf '%s' "$2" | tr 'A-Z' 'a-z')
-  [ -n "$a" ] && [ -n "$b" ] && { case "$a" in "$b"*) return 0;; esac; case "$b" in "$a"*) return 0;; esac; }
-  return 1
-}
 same_app "$now" "$target" || { log "launcher: focus is on $now, not the $target we launched - leaving it alone"; exit 0; }
 
 take_lock_or_quit || exit 0
@@ -150,9 +183,9 @@ log "launcher: asking $now for a new window"
 new_window "$now"
 
 # Land on what was just opened, not on whatever we were typing into.
-for _ in $(seq 10); do
-  sleep 0.2
+for _ in $(seq 30); do
   new=$("$AERO" list-windows --all --format '%{window-id}' 2>/dev/null | sort -n \
         | comm -13 <(printf '%s\n' "$ids") - | head -1)
   [ -n "$new" ] && { "$AERO" focus --window-id "$new" 2>/dev/null; log "launcher: focused new window $new"; break; }
+  sleep 0.05
 done
