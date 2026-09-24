@@ -150,6 +150,20 @@ shift-semicolon = 'resize width -10'
 b = 'balance-sizes'
 enter = 'mode main'
 esc   = 'mode main'
+# mod+r again leaves, like entering. Workspace keys keep working here and drop
+# you back to normal mode: r sits right under 4 and 5, so a quick run of
+# mod+digits easily brushes it and used to leave every workspace key dead.
+alt-r = 'mode main'
+alt-1 = ['mode main', 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/ws-goto.sh 1"']
+alt-2 = ['mode main', 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/ws-goto.sh 2"']
+alt-3 = ['mode main', 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/ws-goto.sh 3"']
+alt-4 = ['mode main', 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/ws-goto.sh 4"']
+alt-5 = ['mode main', 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/ws-goto.sh 5"']
+alt-6 = ['mode main', 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/ws-goto.sh 6"']
+alt-7 = ['mode main', 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/ws-goto.sh 7"']
+alt-8 = ['mode main', 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/ws-goto.sh 8"']
+alt-9 = ['mode main', 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/ws-goto.sh 9"']
+alt-0 = ['mode main', 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/ws-goto.sh 10"']
 
 [mode.exit.binding]
 # i3's "exit i3?" confirmation

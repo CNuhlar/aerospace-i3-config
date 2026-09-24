@@ -72,7 +72,7 @@ i3's default finger layout: `j k l ;` (not `h j k l`, `h` is split). Arrow keys 
 | `mod+shift+e` | exit mode (`y` quits AeroSpace, `n` cancels) |
 | `mod+shift+c` | reload config |
 
-In resize mode: `j` / `k` / `l` / `;` or arrows resize, with `shift` for smaller steps; `b` balances sizes; `enter` or `esc` goes back. Horizontal is inverted compared to i3 (`j` grows, `;` shrinks); flip the signs in `[mode.resize.binding]` if you prefer i3's way.
+In resize mode (the menu bar shows **(R)**): `j` / `k` / `l` / `;` or arrows resize, with `shift` for smaller steps; `b` balances sizes; `enter`, `esc` or `mod+r` goes back, and `mod+1`…`mod+0` switch workspace and go back. Horizontal is inverted compared to i3 (`j` grows, `;` shrinks); flip the signs in `[mode.resize.binding]` if you prefer i3's way.
 
 ## Behaviour to know about
 
