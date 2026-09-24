@@ -9,9 +9,12 @@ start-at-login = true
 after-login-command = []
 after-startup-command = []
 
-# Required for i3-like behaviour: the 'split' command is a no-op while
-# normalization is on. With it off, the container tree stays where you put it.
-enable-normalization-flatten-containers = false
+# Flattening stays on: without it, a window leaving a container strands the rest
+# in single-child containers, and mod+s / mod+w / mod+e change the layout of one
+# of those with nothing moving on screen. It does turn AeroSpace's own 'split'
+# into an error, so mod+h / mod+v go through scripts/split.sh instead.
+# The opposite-orientation one stays off, so mod+e can flip a nested container.
+enable-normalization-flatten-containers = true
 enable-normalization-opposite-orientation-for-nested-containers = false
 
 accordion-padding = 30
@@ -60,12 +63,14 @@ alt-f       = '''exec-and-forget /bin/bash -c 'PATH=/opt/homebrew/bin:/usr/local
 alt-shift-space = 'layout floating tiling'   # i3: floating toggle
 
 # --- split (i3: where the next window opens) ---
-alt-h         = 'split horizontal'
-alt-v         = 'split vertical'
-alt-backslash = 'split horizontal'
-alt-e = 'layout tiles horizontal vertical'
-alt-w = 'layout accordion horizontal vertical'
-alt-s = 'layout accordion vertical horizontal'
+# Remembered for the focused window, applied when the next window lands beside
+# it. See scripts/split.sh.
+alt-h         = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/split.sh h"'
+alt-v         = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/split.sh v"'
+alt-backslash = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/split.sh h"'
+alt-e = 'layout tiles horizontal vertical'   # i3: layout toggle split
+alt-w = 'layout h_accordion'                 # i3: layout tabbed
+alt-s = 'layout v_accordion'                 # i3: layout stacking
 
 # --- focus (i3 default layout: j/k/l/; plus arrows) ---
 alt-j         = 'focus left'
@@ -155,6 +160,12 @@ enter = 'mode main'
 esc   = 'mode main'
 
 # --- app rules ---
+# Every new window: finish a pending mod+h / mod+v. First in the list and with
+# check-further-callbacks, so the rules below still get their say.
+[[on-window-detected]]
+check-further-callbacks = true
+run = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/split.sh --apply"'
+
 [[on-window-detected]]
 if.app-id = 'com.apple.systempreferences'
 run = 'layout floating'

@@ -33,6 +33,9 @@ printf '%s' "$count" > "$STATE/count"
 log "guard: focus change, cur=$cur exp=$exp count=$count prev=$prev_count focused=[$("$AERO" list-windows --focused --format '%{window-id} %{app-name}' 2>/dev/null | head -1)]"
 
 if [ -z "$exp" ] || [ "$exp" = '*' ] || [ "$exp" = "$cur" ]; then
+  # Focus moved within where you are. A window arriving from elsewhere is
+  # handled below and must not cancel a pending mod+h / mod+v.
+  forget_split_unless "$("$AERO" list-windows --focused --format '%{window-id}' 2>/dev/null | head -1)"
   printf '%s' "$cur" > "$STATE/expected"
   exit 0
 fi

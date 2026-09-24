@@ -53,11 +53,11 @@ i3's default finger layout — `j k l ;` rather than `h j k l`, because `h` is t
 
 | Key | Action |
 |---|---|
-| `mod+h` (or `mod+\`) | split horizontal |
-| `mod+v` | split vertical |
-| `mod+e` | tiling layout |
-| `mod+w` | tabbed layout (accordion) |
-| `mod+s` | stacking layout (accordion) |
+| `mod+h` (or `mod+\`) | split horizontal: next window opens beside this one |
+| `mod+v` | split vertical: next window opens below this one |
+| `mod+e` | tiling layout; again to toggle horizontal / vertical |
+| `mod+w` | tabbed layout (horizontal accordion) |
+| `mod+s` | stacking layout (vertical accordion) |
 
 ### Workspaces
 
@@ -147,16 +147,22 @@ Things worth knowing before you keep this:
 
 These cost real debugging time. They are documented in comments in `aerospace.toml` too.
 
-### `split` silently does nothing
+### `mod+s` / `mod+w` / `mod+e` seem to do nothing
 
-AeroSpace's normalizations flatten the container tree, which makes the `split` command a no-op — `mod+v` then a new window gives you nothing. Both must be off for i3-style splits:
+AeroSpace's `split` command only works with the flatten normalization off, which is why i3 configs for AeroSpace usually turn it off. The price shows up later: whenever a window leaves a container — closed, moved, sent to another workspace — the ones left behind stay wrapped in containers of one. You cannot see them, but layout commands act on the focused window's container, so `mod+s` turns a one-window container into a stack and nothing on screen moves. After a while of normal use nearly every window sits in one of these.
+
+So flattening stays **on**, which cleans those up as soon as they appear:
 
 ```toml
-enable-normalization-flatten-containers = false
+enable-normalization-flatten-containers = true
 enable-normalization-opposite-orientation-for-nested-containers = false
 ```
 
-The tradeoff is i3's: closing windows can leave stale single-child containers behind. `balance-sizes` (`b` in resize mode) or `flatten-workspace-tree` cleans up.
+With it on, AeroSpace's `split` refuses to run, so `mod+h` / `mod+v` go through `scripts/split.sh`, built on `join-with` as AeroSpace recommends. The key only notes which way you want the next window to go from the focused one. When a window lands next to it — opened with `mod+enter` or `mod+d`, or brought over by the focus guard — an `on-window-detected` callback (or the guard itself) joins the two into a container of that orientation. A new window always lands right after the focused one, so the window you pressed the key on is to its left or above it, and that is the direction `join-with` takes. Nothing happens if they already line up that way. The choice is dropped once focus moves to another window that was already there, so a window you open from elsewhere does not pick it up.
+
+The opposite-orientation normalization stays off so that `mod+e` can flip a nested container to match its parent.
+
+`mod+s` / `mod+w` are `layout v_accordion` / `layout h_accordion`. An earlier `layout accordion vertical horizontal` kept the container's orientation, so in a side-by-side container "stacking" gave the same thing as "tabbed".
 
 ### Opening a new terminal window
 

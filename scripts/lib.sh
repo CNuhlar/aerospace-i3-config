@@ -63,7 +63,54 @@ place_window() {  # $1 = window id, $2 = workspace, $3 = anchor window id (may b
   "$AERO" focus --window-id "$1" 2>/dev/null
   [ -n "${3:-}" ] && [ "$3" != "$1" ] && "$AERO" focus --window-id "$3" 2>/dev/null
   "$AERO" layout --window-id "$1" tiling 2>/dev/null
+  apply_split "$1" "${3:-}"
   "$AERO" focus --window-id "$1" 2>/dev/null
+}
+
+# The other half of split.sh: a window has just landed - opened, or brought
+# here by place_window - and if it landed beside the window that mod+h / mod+v
+# was pressed on, join the two in a container of the orientation asked for.
+#
+# New windows go right after the window that had focus, so that window is to
+# the left of the arrival in a horizontal container, or above it in a vertical
+# one - join-with in that direction picks it up, and makes a container of the
+# opposite orientation, which is the one asked for whenever the two differ.
+apply_split() {  # $1 = window that arrived, $2 = window it was placed next to (if known)
+  local line pwid want top lay have dir ws pws
+  line=$(cat "$STATE/split" 2>/dev/null) || return 0
+  read -r pwid want top <<<"$line"
+  [ -n "${pwid:-}" ] && [ "$1" != "$pwid" ] || return 0
+  [ -n "${2:-}" ] && [ "$2" != "$pwid" ] && return 0
+  read -r lay ws <<<"$("$AERO" list-windows --all --format '%{window-id} %{window-layout} %{workspace}' 2>/dev/null | awk -v w="$1" '$1==w{print $2, $3}')"
+  pws=$("$AERO" list-windows --all --format '%{window-id} %{workspace}' 2>/dev/null | awk -v w="$pwid" '$1==w{print $2}')
+  [ -n "$pws" ] && [ "$ws" = "$pws" ] || return 0
+  case "$lay" in
+    h_*) have=h; dir=left ;;
+    v_*) have=v; dir=up ;;
+    *) return 0 ;;   # floating, dialogs
+  esac
+  # Used up: from here on the container itself carries the orientation, and
+  # the next window opened inside it follows it without being told.
+  rm -f "$STATE/split"
+  if [ "$have" = "$want" ]; then
+    log "split: $1 is already $want beside $pwid"
+    return 0
+  fi
+  "$AERO" join-with --window-id "$1" "$dir" 2>/dev/null
+  log "split: joined $1 with $pwid, $want"
+}
+
+# A mod+h / mod+v choice belongs to the window it was made on. Once focus moves
+# to some other window that already existed, a window opened from there must not
+# pick it up. Windows newer than the choice are the arrivals it is waiting for.
+forget_split_unless() {  # $1 = window that now has focus
+  local pwid want top
+  read -r pwid want top < "$STATE/split" 2>/dev/null || return 0
+  [ -n "${1:-}" ] || return 0
+  if [ "$1" != "$pwid" ] && [ "$1" -le "${top:-0}" ]; then
+    rm -f "$STATE/split"
+    log "split: focus went to $1, dropping the choice made on $pwid"
+  fi
 }
 
 # One writer at a time: the guard fires on every focus change and the launcher
