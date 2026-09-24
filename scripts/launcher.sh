@@ -95,9 +95,16 @@ was=$(focused_app)
 before=$(win_count)
 ws0=$("$AERO" list-workspaces --focused 2>/dev/null)
 
-# The delay matters: if alt is still held when cmd+space is sent, macOS reads it
-# as cmd+alt+space, which is "Spotlight window" and opens a Finder search.
-osascript -e 'delay 0.3' -e 'tell application "System Events" to key code 49 using {command down}' >/dev/null 2>&1
+# Open Spotlight. Every moment before the panel is up, what you type goes to the
+# window behind it, so this has to be quick. cmd-space (built from cmd-space.c by
+# install.sh) sends exactly cmd+space at once. Without it, fall back to System
+# Events, which has to wait for alt to be let go: sent while alt is still held,
+# the keystroke becomes cmd+alt+space and opens a Finder search.
+if [ -x "$(dirname "$0")/cmd-space" ]; then
+  "$(dirname "$0")/cmd-space"
+else
+  osascript -e 'delay 0.3' -e 'tell application "System Events" to key code 49 using {command down}' >/dev/null 2>&1
+fi
 
 # Each of these probes is an osascript round trip, which is throttle enough on
 # its own - a sleep on top of it only adds to the wait before the panel shows.

@@ -98,7 +98,7 @@ Besides linking the config into `~/.aerospace.toml` and the scripts into `~/.con
   ![Menu bar indicator showing workspaces 1, 3 and 5, with 5 highlighted](docs/menubar.png)
 
 - **Claude Code shows empty rows after `mod+f`:** switch it to the fullscreen renderer with `/tui fullscreen`.
-- **`mod+d` opens a Finder search instead of Spotlight:** you are holding `alt` longer than 0.3s; raise the `delay` in `scripts/launcher.sh`.
+- **`mod+d` is slow or opens a Finder search instead of Spotlight:** `install.sh` builds a small helper that opens Spotlight instantly, which needs `clang` (`xcode-select --install`). Without it `mod+d` waits 0.3s for you to let go of `alt`.
 - **Another terminal:** change the `alt-enter` binding. Ghostty, Alacritty and kitty open a window with plain `open -na <App>`.
 
 ## Customising

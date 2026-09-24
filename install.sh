@@ -22,6 +22,17 @@ for f in "$repo"/scripts/*.sh; do
 done
 echo "Linked scripts into $scripts_dir"
 
+# mod+d's cmd+space sender, so Spotlight opens at once. launcher.sh falls back
+# to a slower System Events keystroke if this cannot be built.
+if command -v clang >/dev/null 2>&1; then
+  if [ ! -x "$scripts_dir/cmd-space" ] || [ "$repo/scripts/cmd-space.c" -nt "$scripts_dir/cmd-space" ]; then
+    clang -O2 -framework ApplicationServices -o "$scripts_dir/cmd-space" "$repo/scripts/cmd-space.c" \
+      && echo "Built $scripts_dir/cmd-space"
+  fi
+else
+  echo "clang not found (xcode-select --install): mod+d will open Spotlight a little slower."
+fi
+
 if command -v aerospace >/dev/null 2>&1; then
   aerospace reload-config && echo "Config reloaded."
 else
