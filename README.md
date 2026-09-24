@@ -20,7 +20,7 @@ cd aerospace-i3-config
 ./install.sh
 ```
 
-`install.sh` backs up any existing `~/.aerospace.toml`, symlinks this one in its place, and reloads AeroSpace.
+`install.sh` backs up any existing `~/.aerospace.toml`, symlinks this one in its place, and reloads AeroSpace. It also makes Mission Control readable next to AeroSpace, and sets up ctrl+←/→ word jumping in iTerm and zsh — both explained under the macOS gotchas below. Every step checks first and changes nothing that is already right, so it is safe to run again.
 
 Then grant AeroSpace **Accessibility** permission (System Settings → Privacy & Security → Accessibility). Without it the app runs but manages nothing.
 
@@ -208,6 +208,27 @@ killall Dock
 Dock → Mission Control → *Group windows by application*. No AeroSpace setting
 controls where hidden windows are parked, so this is the fix — the alternative
 is turning the gesture off in System Settings → Trackpad → More Gestures.
+
+### ctrl+arrow does not jump words in iTerm
+
+`ctrl+←` / `ctrl+→` moving a word at a time in the shell takes three pieces, and missing any one of them looks exactly like missing all three:
+
+1. **macOS' own shortcuts have to let go.** "Move left a space" / "Move right a space" sit on `ctrl+←/→` (and Mission Control / application windows on `ctrl+↑/↓`). They take the keys before iTerm ever sees them. With AeroSpace managing workspaces there is nothing to lose by turning them off — they are symbolic hotkeys 79–82:
+
+   ```sh
+   defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add 79 '<dict><key>enabled</key><false/></dict>'   # and 80, 81, 82
+   /System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u
+   ```
+
+2. **iTerm has to send the xterm sequences**: `ctrl+←` → `ESC [1;5D`, `ctrl+→` → `ESC [1;5C` (Settings → Profiles → Keys → Key Mappings, "Send Escape Sequence").
+3. **zsh has to map them to word movement**:
+
+   ```sh
+   bindkey '^[[1;5D' backward-word
+   bindkey '^[[1;5C' forward-word
+   ```
+
+`install.sh` does all three: the hotkeys, the key mapping in every iTerm profile (skipped if iTerm loads its settings from a custom folder), and the two lines appended to `~/.zshrc` once. iTerm only reads the new mapping after a restart — quit it fully with `cmd+q`.
 
 ### Workspace indicator in the menu bar
 
