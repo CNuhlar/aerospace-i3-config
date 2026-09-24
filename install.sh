@@ -33,7 +33,7 @@ fi
 # windows of every hidden workspace in an off-screen corner, so the layout has
 # to span far beyond the display and every window shrinks to a speck. Grouping
 # by application replaces that layout with per-app stacks, which is readable
-# again. See README, "Three-finger swipe up shows only specks".
+# again.
 if [ "$(defaults read com.apple.dock expose-group-apps 2>/dev/null)" != "1" ]; then
   defaults write com.apple.dock expose-group-apps -bool true
   killall Dock 2>/dev/null || true
@@ -41,8 +41,7 @@ if [ "$(defaults read com.apple.dock expose-group-apps 2>/dev/null)" != "1" ]; t
 fi
 
 # --- ctrl+left / ctrl+right jump a word in iTerm + zsh -----------------------
-# Three pieces, and all three have to be there. See README, "ctrl+arrow does not
-# jump words in iTerm".
+# Three pieces, and all three have to be there.
 
 # 1. macOS' "Move left/right a space" (and the Mission Control / app windows
 #    ones on ctrl+up/down) take ctrl+arrow before any app sees it. AeroSpace
