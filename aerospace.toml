@@ -43,11 +43,9 @@ outer.right      = 8
 [mode.main.binding]
 
 # --- terminal / launcher ---
-# New iTerm window. Two obvious approaches are broken:
-#   open -na iTerm                     -> iTerm refuses a second instance, no window
-#   create window with default profile -> opens a window with no session in it
-# What works: clicking Shell > "New Window with Current Profile".
-alt-enter = '''exec-and-forget osascript -e 'tell application "iTerm" to activate' -e 'tell application "System Events" to tell process "iTerm2" to click menu item "New Window with Current Profile" of menu 1 of menu bar item "Shell" of menu bar 1' '''
+# New iTerm window. What works depends on whether one is already open, and the
+# environment has to be scrubbed on the way out - see scripts/new-terminal.sh.
+alt-enter = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/new-terminal.sh"'
 # Spotlight in place of i3's dmenu. The script also tells focus-guard.sh that a
 # launch is in flight, so launching an app you already have open gives you a new
 # window instead of raising the old one. See scripts/launcher.sh.
