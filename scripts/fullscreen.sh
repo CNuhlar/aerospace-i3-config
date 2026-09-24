@@ -43,9 +43,24 @@ for _ in $(seq 20); do
   last=$now
 done
 
-comm -13 <(printf '%s\n' "$before" | sort) <(printf '%s\n' "$now" | sort) | while read -r t _; do
-  # pkill -t finds nothing on macOS; ps -t does.
-  pids=$(ps -t "${t#/dev/}" -o pid= 2>/dev/null)
-  [ -n "$pids" ] && kill -WINCH $pids 2>/dev/null
+# Only the sizes that changed. A width change makes most full-screen programs
+# clear and redraw everything, so one more SIGWINCH at the settled size is all
+# they need. A height-only change - fullscreen from a window stacked with
+# another - is not enough for some of them: Claude Code only redraws its bottom
+# part, and the rows gained stay empty at the top. For those, nudge the width by
+# one column and back. The kernel sends SIGWINCH itself on each change, and the
+# program sees a width change, so it redraws in full.
+comm -13 <(printf '%s\n' "$before" | sort) <(printf '%s\n' "$now" | sort) | while read -r t size; do
+  old=$(printf '%s\n' "$before" | awk -v t="$t" '$1==t{print $2}')
+  rows=${size%x*}; cols=${size#*x}
+  if [ -n "$old" ] && [ "${old#*x}" = "$cols" ] && [ "$cols" -gt 1 ]; then
+    stty -f "$t" cols $((cols - 1)) 2>/dev/null
+    sleep 0.1
+    stty -f "$t" cols "$cols" 2>/dev/null
+  else
+    # pkill -t finds nothing on macOS; ps -t does.
+    pids=$(ps -t "${t#/dev/}" -o pid= 2>/dev/null)
+    [ -n "$pids" ] && kill -WINCH $pids 2>/dev/null
+  fi
 done
 exit 0
