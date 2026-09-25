@@ -90,6 +90,7 @@ Turn the workspace guard off with `touch ~/.cache/aerospace-i3/disabled`. See wh
 Besides linking the config into `~/.aerospace.toml` and the scripts into `~/.config/aerospace-i3/` (an existing config is backed up first):
 
 - **Mission Control groups windows by application.** Otherwise AeroSpace's hidden windows shrink the three-finger-swipe view to specks. (System Settings → Desktop & Dock → Mission Control.)
+- **Links from other apps open in a new Safari window**, not as a tab in the window Safari already has, so the link lands next to you on its own. Links a page opens in a new window get one too. (Safari → Settings → Tabs → Open pages in tabs instead of windows: Never.)
 - **ctrl+← / ctrl+→ jump words in iTerm + zsh:** turns off macOS' ctrl+arrow Space shortcuts, adds the key mappings to every iTerm profile, and appends two `bindkey` lines to `~/.zshrc`. Restart iTerm afterwards.
 
 ## Tips

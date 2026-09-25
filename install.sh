@@ -55,6 +55,16 @@ if [ "$(defaults read com.apple.dock expose-group-apps 2>/dev/null)" != "1" ]; t
   echo "Mission Control set to group windows by application."
 fi
 
+# A link clicked in another app (iTerm, WhatsApp, ...) gets a Safari window of
+# its own. Left on "Automatically", Safari adds it as a tab to the window it
+# already has, and focus-guard then brings that whole window over, old tabs and
+# all. A new window is placed like any other, so mod+h / mod+v decide the side.
+# Safari Settings -> Tabs -> "Open pages in tabs instead of windows": Never.
+if [ "$(defaults read com.apple.Safari TabCreationPolicy 2>/dev/null)" != "0" ]; then
+  defaults write com.apple.Safari TabCreationPolicy -int 0 2>/dev/null \
+    && echo "Safari: links from other apps open in a new window."
+fi
+
 # --- ctrl+left / ctrl+right jump a word in iTerm + zsh -----------------------
 # Three pieces, and all three have to be there.
 
