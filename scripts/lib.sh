@@ -225,3 +225,17 @@ launch_pending() {
   [ "$at" -gt 0 ] && [ $(( $(date +%s) - at )) -le "$LAUNCH_TTL" ]
 }
 clear_launch() { rm -f "$STATE/launch-at"; }
+
+# The jump a mod+d launch causes can reach the guard before launcher.sh has
+# noticed Spotlight close and armed launch-at, and read as a plain activation it
+# brought the app's old window over - with the new one following right behind.
+# While the launcher is still alive, give it a moment to make up its mind: it
+# either arms launch-at or exits.
+wait_for_launcher() {  # $1 = tenths of a second to wait at most
+  local pid n=${1:-10}
+  pid=$(cat "$STATE/launcher.pid" 2>/dev/null) || return 0
+  [ -n "$pid" ] || return 0
+  while [ $n -gt 0 ] && ! launch_pending && kill -0 "$pid" 2>/dev/null; do
+    sleep 0.1; n=$((n - 1))
+  done
+}

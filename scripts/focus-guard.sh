@@ -94,6 +94,7 @@ fi
 # to. Bring that one here, placed as a new window would be, so mod+h / mod+v
 # decide the side. Asking the app for a fresh window instead left you with an
 # empty one, and apps without File > New Window made you wait for nothing.
+wait_for_launcher 10
 if ! launch_pending; then
   log "guard: bringing $app window $wid to $exp next to ${anchor:-nothing}"
   place_window "$wid" "$exp" "$anchor"
