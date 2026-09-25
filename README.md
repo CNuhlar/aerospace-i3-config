@@ -80,6 +80,7 @@ In resize mode (the menu bar shows **(R)**): `j` / `k` / `l` / `;` or arrows res
 - **New windows open at the end of the row or column** you are in, not in the middle next to the focused window. `mod+h` / `mod+v` still split the focused window.
 - **`mod+d` on an app that's already open gives a new window**, not the old one raised. Apps without a New Window menu item get their existing window brought over.
 - **Closing a window never makes its app reopen one.**
+- **Closing a window leaves the keyboard on a window you can see.** cmd+w in an app with windows elsewhere used to leave that app in front, invisible, with keys going nowhere useful and `mod+arrow` dead. Now focus goes back to the highlighted window, and if it ever gets lost anyway, the first `mod+arrow` brings it back.
 - **Switch workspaces with the keys, not the CLI.** `aerospace workspace 3` from a shell looks like an app jump and you get pulled back. Use `~/.config/aerospace-i3/ws-goto.sh 3`.
 - **macOS fullscreen (green button) windows** live in their own Space outside the tiling; `mod+f` inside one brings it back.
 

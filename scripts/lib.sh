@@ -174,6 +174,32 @@ move_to_end() {  # $1 = window id
   "$AERO" focus --window-id "$1" 2>/dev/null
 }
 
+# AeroSpace and macOS can disagree about which window has focus. Close an app's
+# window with its own cmd+w and the app stays in front with nothing of it on
+# this workspace, while AeroSpace still holds the window it had before - the one
+# you see highlighted. Keys go to the invisible app, and mod+arrow only moves on
+# from AeroSpace's window, so with nothing in that direction it does nothing.
+# AeroSpace takes focusing the window it already has as a no-op, so bring its
+# app to the front ourselves; the app's key window is that same window, the one
+# it had before the other app took over. With no window focused at all, take
+# the first one here. Returns 1 if all was well.
+sync_focus() {
+  local wid pid front
+  read -r wid pid <<<"$("$AERO" list-windows --focused --format '%{window-id} %{app-pid}' 2>/dev/null | head -1)"
+  if [ -z "${wid:-}" ]; then
+    [ "$("$AERO" list-windows --workspace focused --count 2>/dev/null || echo 0)" -gt 0 ] || return 1
+    log "sync: nothing focused, taking the first window here"
+    "$AERO" focus --dfs-index 0 2>/dev/null
+    return 0
+  fi
+  front=$(lsappinfo info -only pid "$(lsappinfo front)" 2>/dev/null)
+  front=${front#*=}
+  [ -z "$front" ] || [ "$front" = "$pid" ] && return 1
+  log "sync: pid $front is in front, AeroSpace has $wid (pid $pid) - focusing it"
+  osascript -e "tell application \"System Events\" to set frontmost of (first process whose unix id is $pid) to true" >/dev/null 2>&1
+  "$AERO" focus --window-id "$wid" 2>/dev/null
+}
+
 # One writer at a time: the guard fires on every focus change and the launcher
 # runs alongside it. Callers release it themselves - take_lock_or_quit in each
 # of them arms the EXIT trap, which is right for a script that does its work

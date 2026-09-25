@@ -72,14 +72,17 @@ alt-w = 'layout h_accordion'                 # i3: layout tabbed
 alt-s = 'layout v_accordion'                 # i3: layout stacking
 
 # --- focus (i3 default layout: j/k/l/; plus arrows) ---
-alt-j         = 'focus left'
-alt-k         = 'focus down'
-alt-l         = 'focus up'
-alt-semicolon = 'focus right'
-alt-left  = 'focus left'
-alt-down  = 'focus down'
-alt-up    = 'focus up'
-alt-right = 'focus right'
+# If macOS has the keyboard somewhere AeroSpace does not (an app left in front
+# with no window here, or nothing focused), the first press takes you back to
+# the focused window instead of doing nothing. See scripts/focus.sh.
+alt-j = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/focus.sh left"'
+alt-k = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/focus.sh down"'
+alt-l = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/focus.sh up"'
+alt-semicolon = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/focus.sh right"'
+alt-left = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/focus.sh left"'
+alt-down = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/focus.sh down"'
+alt-up = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/focus.sh up"'
+alt-right = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/focus.sh right"'
 
 # --- move window ---
 alt-shift-j         = 'move left'
