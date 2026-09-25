@@ -138,6 +138,12 @@ while IFS= read -r v; do
   [ -n "$t" ] && target="$t"
 done < <(sp_watch)
 [ "$query" = "$first" ] || prev_typed=1
+# The results can lag the typing by half a second or more - longer with a
+# browser in front, whose menu items Spotlight searches too - so a quick
+# "saf" + Return can close the panel before we ever saw a highlight. Fall back
+# to what was typed: same_app matches on a prefix, so "saf" still names Safari,
+# and a window is only made if focus really did land on an app of that name.
+[ -n "$target" ] || target="$query"
 log "launcher: closed, query=[$query] first=[$first] target=[$target] typed=$prev_typed"
 [ "$prev_typed" = 1 ] && [ -n "$target" ] || exit 0
 
