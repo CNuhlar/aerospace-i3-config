@@ -107,16 +107,19 @@ alt-9 = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/ws-goto.sh 9"'
 alt-0 = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/ws-goto.sh 10"'
 
 # --- move window to workspace ---
-alt-shift-1 = 'move-node-to-workspace 1'
-alt-shift-2 = 'move-node-to-workspace 2'
-alt-shift-3 = 'move-node-to-workspace 3'
-alt-shift-4 = 'move-node-to-workspace 4'
-alt-shift-5 = 'move-node-to-workspace 5'
-alt-shift-6 = 'move-node-to-workspace 6'
-alt-shift-7 = 'move-node-to-workspace 7'
-alt-shift-8 = 'move-node-to-workspace 8'
-alt-shift-9 = 'move-node-to-workspace 9'
-alt-shift-0 = 'move-node-to-workspace 10'
+# Windows moved over one after another keep their places: one that sat beside
+# (or above) the window moved before it lands beside (or above) it again. See
+# scripts/move-to-ws.sh.
+alt-shift-1 = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/move-to-ws.sh 1"'
+alt-shift-2 = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/move-to-ws.sh 2"'
+alt-shift-3 = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/move-to-ws.sh 3"'
+alt-shift-4 = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/move-to-ws.sh 4"'
+alt-shift-5 = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/move-to-ws.sh 5"'
+alt-shift-6 = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/move-to-ws.sh 6"'
+alt-shift-7 = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/move-to-ws.sh 7"'
+alt-shift-8 = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/move-to-ws.sh 8"'
+alt-shift-9 = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/move-to-ws.sh 9"'
+alt-shift-0 = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/move-to-ws.sh 10"'
 
 # i3: mod+tab / workspace back_and_forth
 alt-tab = 'exec-and-forget /bin/bash -c "$HOME/.config/aerospace-i3/ws-goto.sh --back-and-forth"'

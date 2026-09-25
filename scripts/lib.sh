@@ -68,24 +68,30 @@ place_window() {  # $1 = window id, $2 = workspace, $3 = anchor window id (may b
   "$AERO" focus --window-id "$1" 2>/dev/null
 }
 
-# The other half of split.sh: a window has just landed - opened, or brought
-# here by place_window - and if it landed beside the window that mod+h / mod+v
-# was pressed on, join the two in a container of the orientation asked for.
+# mod+h / mod+v choices, one per workspace, like i3's split mark on the
+# container it was made in: going off to another workspace and sending a window
+# back with mod+shift+N still finds it there. "window h|v newest-id-then".
+split_file() { printf '%s/split.%s' "$STATE" "$1"; }
+
+# The other half of split.sh: a window has just landed - opened, brought here
+# by place_window, or sent over by move-to-ws.sh - and if it landed beside the
+# window that mod+h / mod+v was pressed on, join the two in a container of the
+# orientation asked for.
 #
 # New windows go right after the window that had focus, so that window is to
 # the left of the arrival in a horizontal container, or above it in a vertical
 # one - join-with in that direction picks it up, and makes a container of the
 # opposite orientation, which is the one asked for whenever the two differ.
 apply_split() {  # $1 = window that arrived, $2 = window it was placed next to (if known)
-  local line pwid want top lay have dir ws pws
+  local pwid want top lay have dir ws pws
   SPLIT_JOINED=0
-  line=$(cat "$STATE/split" 2>/dev/null) || return 0
-  read -r pwid want top <<<"$line"
+  read -r lay ws <<<"$("$AERO" list-windows --all --format '%{window-id} %{window-layout} %{workspace}' 2>/dev/null | awk -v w="$1" '$1==w{print $2, $3}')"
+  [ -n "${ws:-}" ] || return 0
+  read -r pwid want top 2>/dev/null < "$(split_file "$ws")" || return 0
   [ -n "${pwid:-}" ] && [ "$1" != "$pwid" ] || return 0
   [ -n "${2:-}" ] && [ "$2" != "$pwid" ] && return 0
-  read -r lay ws <<<"$("$AERO" list-windows --all --format '%{window-id} %{window-layout} %{workspace}' 2>/dev/null | awk -v w="$1" '$1==w{print $2, $3}')"
   pws=$("$AERO" list-windows --all --format '%{window-id} %{workspace}' 2>/dev/null | awk -v w="$pwid" '$1==w{print $2}')
-  [ -n "$pws" ] && [ "$ws" = "$pws" ] || return 0
+  [ "$ws" = "$pws" ] || { rm -f "$(split_file "$ws")"; return 0; }   # gone or moved away
   case "$lay" in
     h_*) have=h; dir=left ;;
     v_*) have=v; dir=up ;;
@@ -93,7 +99,7 @@ apply_split() {  # $1 = window that arrived, $2 = window it was placed next to (
   esac
   # Used up: from here on the container itself carries the orientation, and
   # the next window opened inside it follows it without being told.
-  rm -f "$STATE/split"
+  rm -f "$(split_file "$ws")"
   if [ "$have" = "$want" ]; then
     log "split: $1 is already $want beside $pwid"
     return 0
@@ -103,16 +109,35 @@ apply_split() {  # $1 = window that arrived, $2 = window it was placed next to (
 }
 
 # A mod+h / mod+v choice belongs to the window it was made on. Once focus moves
-# to some other window that already existed, a window opened from there must not
-# pick it up. Windows newer than the choice are the arrivals it is waiting for.
-forget_split_unless() {  # $1 = window that now has focus
+# to some other window of that workspace that already existed, a window opened
+# from there must not pick it up. Windows newer than the choice are the arrivals
+# it is waiting for. Focus on other workspaces leaves it alone.
+forget_split_unless() {  # $1 = window that now has focus, $2 = its workspace
   local pwid want top
-  read -r pwid want top < "$STATE/split" 2>/dev/null || return 0
-  [ -n "${1:-}" ] || return 0
+  [ -n "${1:-}" ] && [ -n "${2:-}" ] || return 0
+  read -r pwid want top 2>/dev/null < "$(split_file "$2")" || return 0
   if [ "$1" != "$pwid" ] && [ "$1" -le "${top:-0}" ]; then
-    rm -f "$STATE/split"
+    rm -f "$(split_file "$2")"
     log "split: focus went to $1, dropping the choice made on $pwid"
   fi
+}
+
+# Step a window back through its workspace until it sits right after another
+# one, in that one's container - where a window opened next to it would go.
+# The window list comes in tree order, so "right after" is being next in it.
+# A step into a container goes inside it at the end, and a step back out of
+# one puts it in front of it, so walking back always gets there.
+place_after() {  # $1 = window to move, $2 = the window it goes after; both on one workspace
+  local ws i before lay
+  ws=$("$AERO" list-windows --all --format '%{window-id} %{workspace}' 2>/dev/null | awk -v w="$1" '$1==w{print $2}')
+  for i in $(seq 30); do
+    read -r before lay <<<"$("$AERO" list-windows --workspace "$ws" --format '%{window-id} %{window-parent-container-layout}' 2>/dev/null \
+      | awk -v w="$1" '$1==w{print p, $2; exit} {p=$1}')"
+    [ "$before" = "$2" ] && return 0
+    [ -n "$before" ] || return 1   # at the front and still not there
+    case "$lay" in h_*) "$AERO" move --window-id "$1" left 2>/dev/null ;; v_*) "$AERO" move --window-id "$1" up 2>/dev/null ;; *) return 1 ;; esac || return 1
+  done
+  return 1
 }
 
 # Put a window that just landed at the end of its row (or column) instead of

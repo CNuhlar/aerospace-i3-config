@@ -23,7 +23,7 @@ case "${1:-}" in
     [ -n "$wid" ] || exit 0
     # The newest window id so far: anything above it arrived after the choice.
     top=$("$AERO" list-windows --all --format '%{window-id}' 2>/dev/null | sort -n | tail -1)
-    printf '%s %s %s\n' "$wid" "$1" "${top:-0}" > "$STATE/split"
+    printf '%s %s %s\n' "$wid" "$1" "${top:-0}" > "$(split_file "$("$AERO" list-workspaces --focused 2>/dev/null)")"
     log "split: next to $wid goes $1"
     ;;
   --apply)

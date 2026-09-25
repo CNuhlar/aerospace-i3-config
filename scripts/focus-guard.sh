@@ -44,7 +44,9 @@ recent_switch=0
 if [ -z "$exp" ] || [ "$exp" = '*' ] || [ "$exp" = "$cur" ]; then
   # Focus moved within where you are. A window arriving from elsewhere is
   # handled below and must not cancel a pending mod+h / mod+v.
-  forget_split_unless "$("$AERO" list-windows --focused --format '%{window-id}' 2>/dev/null | head -1)"
+  # Read together: the workspace is the focused window's own, not "cur", which a
+  # quick switch may already have left behind.
+  forget_split_unless $("$AERO" list-windows --focused --format '%{window-id} %{workspace}' 2>/dev/null | head -1)
   # A window closed here: make sure the keyboard went to one that is still here.
   [ "$count" -lt "$prev_count" ] && sync_focus
   # Only fill in a target nobody set. ws-goto.sh owns it otherwise.
